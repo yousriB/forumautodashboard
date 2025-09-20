@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Filter, Eye, Edit, Calendar, Plus, Car, Phone, Mail } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 // Based on appointment_requests schema
 interface AppointmentRequest {
@@ -123,9 +124,15 @@ const statusColors = {
 export default function Appointments() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [appointments, setAppointments] = useState<AppointmentRequest[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentRequest | null>(null);
+  const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
+const [rescheduleData, setRescheduleData] = useState<{ date: string; time: string }>({ date: '', time: '' });
+const [appointmentToReschedule, setAppointmentToReschedule] = useState<string | null>(null);
 
-  const filteredAppointments = sampleAppointments.filter((appointment) => {
+  const filteredAppointments = appointments.filter((appointment) => {
     const matchesSearch = appointment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          appointment.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (appointment.car_brand && appointment.car_brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -134,30 +141,115 @@ export default function Appointments() {
     return matchesSearch && matchesStatus;
   });
 
-  const updateAppointmentStatus = (appointmentId: string, newStatus: 'pending' | 'confirmed' | 'completed' | 'cancelled') => {
-    const appointmentIndex = sampleAppointments.findIndex(a => a.id === appointmentId);
-    if (appointmentIndex !== -1) {
-      sampleAppointments[appointmentIndex].status = newStatus;
-      setSelectedAppointment(null);
-      window.location.reload(); // Temporary solution for demo
+  const updateAppointmentStatus = async (appointmentId: string, newStatus: 'pending' | 'confirmed' | 'completed' | 'cancelled') => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('appointment_requests')
+        .update({ status: newStatus })
+        .eq('id', appointmentId);
+
+      if (error) {
+        console.error('Error updating appointment status:', error);
+        setError('Failed to update appointment status');
+      } else {
+        fetchAppointments();
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
     }
+    
   };
 
-  const rescheduleAppointment = (appointmentId: string) => {
-    const newDate = prompt('Enter new date (YYYY-MM-DD):');
-    const newTime = prompt('Enter new time (HH:MM):');
-    
-    if (newDate && newTime) {
-      const appointmentIndex = sampleAppointments.findIndex(a => a.id === appointmentId);
-      if (appointmentIndex !== -1) {
-        sampleAppointments[appointmentIndex].appointment_date = newDate;
-        sampleAppointments[appointmentIndex].appointment_time = newTime;
-        alert('Appointment rescheduled successfully!');
-        setSelectedAppointment(null);
-        window.location.reload();
+    // Initial fetch
+    useEffect(() => {
+      fetchAppointments();
+  
+      // Optional: Real-time updates
+      const channel = supabase
+        .channel('appointment_requests')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'appointment_requests' },
+          (payload) => {
+            console.log('Change received!', payload);
+            fetchAppointments(); // Refetch on any change
+          }
+        )
+        .subscribe();
+  
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, []);
+
+    const fetchAppointments = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('appointment_requests')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching appointments:', error);
+          setError('Failed to load appointments');
+        } else {
+          setAppointments(data || []);
+        }
+      } catch (err) {
+        console.error('Error:', err);
+        setError('An unexpected error occurred');
+      } finally {
+        setLoading(false);
       }
-    }
-  };
+    };
+    const rescheduleAppointment = (appointmentId: string) => {
+      // Get current appointment to pre-fill if needed
+      const current = appointments.find(a => a.id === appointmentId);
+      setRescheduleData({
+        date: current?.appointment_date || '',
+        time: current?.appointment_time || '',
+      });
+      setAppointmentToReschedule(appointmentId);
+      setIsRescheduleModalOpen(true);
+    };
+
+    const handleSaveReschedule = async () => {
+      if (!appointmentToReschedule || !rescheduleData.date || !rescheduleData.time) {
+        alert('Please select both date and time.');
+        return;
+      }
+    
+      try {
+        setLoading(true);
+        const { error } = await supabase
+          .from('appointment_requests')
+          .update({
+            appointment_date: rescheduleData.date,
+            appointment_time: rescheduleData.time,
+          })
+          .eq('id', appointmentToReschedule);
+    
+        if (error) {
+          console.error('Error rescheduling appointment:', error);
+          setError('Failed to reschedule appointment');
+        } else {
+          fetchAppointments(); // Refresh list
+          setIsRescheduleModalOpen(false); // Close modal
+          setRescheduleData({ date: '', time: '' });
+          setAppointmentToReschedule(null);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setError('An unexpected error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
 
   return (
     <DashboardLayout>
@@ -280,7 +372,7 @@ export default function Appointments() {
                               <Edit className="h-4 w-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
+                          <DialogContent className="max-w-2xl  overflow-y-auto  ">
                             <DialogHeader>
                               <DialogTitle>Appointment Details</DialogTitle>
                               <DialogDescription>View and manage appointment request</DialogDescription>
@@ -294,6 +386,9 @@ export default function Appointments() {
                                       <div><label className="text-sm text-muted-foreground">Name</label><p className="font-medium">{selectedAppointment.name}</p></div>
                                       <div><label className="text-sm text-muted-foreground">Email</label><p className="font-medium">{selectedAppointment.email}</p></div>
                                       <div><label className="text-sm text-muted-foreground">Phone</label><p className="font-medium">{selectedAppointment.phone || 'Not provided'}</p></div>
+                                      <div><label className="text-sm text-muted-foreground">Message</label><p className="font-medium">{selectedAppointment.message || 'No message'}</p></div>
+                                      <div><label className="text-sm text-muted-foreground">Appointment Date</label><p className="font-medium">{selectedAppointment.appointment_date || 'Not provided'}</p></div>
+                                      <div><label className="text-sm text-muted-foreground">Appointment Time</label><p className="font-medium">{selectedAppointment.appointment_time || 'Not provided'}</p></div>
                                     </div>
                                   </div>
                                   <div className="space-y-3">
@@ -312,7 +407,6 @@ export default function Appointments() {
                                   {selectedAppointment.status === 'pending' && (
                                     <Button onClick={() => {
                                       updateAppointmentStatus(selectedAppointment.id, 'confirmed');
-                                      alert('Appointment confirmed!');
                                     }}>Confirm Appointment</Button>
                                   )}
                                   {(selectedAppointment.status === 'pending' || selectedAppointment.status === 'confirmed') && (
@@ -321,7 +415,6 @@ export default function Appointments() {
                                   {selectedAppointment.status === 'confirmed' && (
                                     <Button onClick={() => {
                                       updateAppointmentStatus(selectedAppointment.id, 'completed');
-                                      alert('Appointment marked as completed!');
                                     }}>Mark as Completed</Button>
                                   )}
                                   <Button variant="outline" asChild>
@@ -333,7 +426,6 @@ export default function Appointments() {
                                     <Button variant="destructive" onClick={() => {
                                       if (confirm('Are you sure you want to cancel this appointment?')) {
                                         updateAppointmentStatus(selectedAppointment.id, 'cancelled');
-                                        alert('Appointment cancelled.');
                                       }
                                     }}>Cancel</Button>
                                   )}
@@ -351,6 +443,51 @@ export default function Appointments() {
           </div>
         </div>
       </div>
+      {/* Reschedule Appointment Modal */}
+<Dialog open={isRescheduleModalOpen} onOpenChange={setIsRescheduleModalOpen}>
+  <DialogContent className="sm:max-w-[425px]">
+    <DialogHeader>
+      <DialogTitle>Reschedule Appointment</DialogTitle>
+      <DialogDescription>
+        Choose a new date and time for this appointment.
+      </DialogDescription>
+    </DialogHeader>
+    <div className="grid gap-4 py-4">
+      <div className="grid grid-cols-4 items-center gap-4">
+        <label htmlFor="date" className="text-right text-sm font-medium">
+          Date
+        </label>
+        <Input
+          id="date"
+          type="date"
+          value={rescheduleData.date}
+          onChange={(e) => setRescheduleData(prev => ({ ...prev, date: e.target.value }))}
+          className="col-span-3"
+        />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <label htmlFor="time" className="text-right text-sm font-medium">
+          Time
+        </label>
+        <Input
+          id="time"
+          type="time"
+          value={rescheduleData.time}
+          onChange={(e) => setRescheduleData(prev => ({ ...prev, time: e.target.value }))}
+          className="col-span-3"
+        />
+      </div>
+    </div>
+    <div className="flex justify-end gap-2">
+      <Button variant="outline" onClick={() => setIsRescheduleModalOpen(false)}>
+        Cancel
+      </Button>
+      <Button onClick={handleSaveReschedule} disabled={loading}>
+        {loading ? 'Saving...' : 'Save Changes'}
+      </Button>
+    </div>
+  </DialogContent>
+</Dialog>
     </DashboardLayout>
   );
 }
