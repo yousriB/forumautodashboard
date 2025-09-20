@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,25 +37,25 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Search, Filter, Eye, Edit, Trash2, Plus, User, Shield, Car } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
+
+const brands = [
+  "ISUZU", "CHEVROLET", "CHERY", "GREAT WALL", "HAVAL", "GAC",
+  "TOYOTA", "SUZUKI", "MG", "FORD", "DFSK", "DONGFENG",
+  "BYD", "RENAULT", "DACIA", "NISSAN"
+];
 
 interface User {
   id: string;
   email: string;
-  role: 'admin' |'sales_agent' | 'support';
-  brand: string | null;
+  role: 'admin' |'sales' | 'support';
+  brand?: string | null;
   created_at: string;
 }
 
-const sampleUsers: User[] = [
-  { id: "1", email: "admin@autodealer.com", role: "admin", brand: null, created_at: "2024-01-01T08:00:00Z" },
-  { id: "3", email: "sarah.sales@autodealer.com", role: "sales_agent", brand: "Mercedes-Benz", created_at: "2024-01-10T10:15:00Z" },
-  { id: "4", email: "mike.sales@autodealer.com", role: "sales_agent", brand: "Audi", created_at: "2024-01-12T14:20:00Z" },
-  { id: "5", email: "emma.support@autodealer.com", role: "support", brand: "Tesla", created_at: "2024-01-15T11:45:00Z" }
-];
-
 const roleColors = {
   admin: "bg-red-500 text-white",
-  sales_agent: "bg-blue-500 text-white",
+  sales: "bg-blue-500 text-white",
   support: "bg-green-500 text-white",
 };
 
@@ -67,15 +67,30 @@ export default function Users() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ email: '', role: 'sales_agent' as User['role'], brand: '' });
-  const [createForm, setCreateForm] = useState({ email: '', role: 'sales_agent' as User['role'], brand: '' });
+  const [users, setUsers] = useState<User[]>([]);
+  const [editForm, setEditForm] = useState({ email: '', role: 'sales' as User['role'], brand: '' });
+  const [createForm, setCreateForm] = useState({ email: '', password: '', role: 'sales' as User['role'], brand: '' });
 
-  const filteredUsers = sampleUsers.filter((user) => {
+  const filteredUsers = users.filter((user) => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (user.brand && user.brand.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, email, role, brand, created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) console.error("Error fetching users:", error.message);
+      else setUsers(data || []);
+    };
+
+    fetchUsers();
+  }, []);
 
   const viewUser = (user: User) => {
     setSelectedUser(user);
@@ -93,33 +108,50 @@ export default function Users() {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedUser) {
-      // In real app, this would be an API call
-      console.log('Deleting user:', selectedUser.id);
+    const { data, error } = await supabase
+      .from("users")
+      .delete()
+      .eq("id", selectedUser.id);
+
+    if (error) console.error("Error deleting user:", error.message);
+    else {
       setIsDeleteDialogOpen(false);
       setSelectedUser(null);
       // Show success message or refresh data
     }
-  };
-
-  const handleEdit = () => {
-    if (selectedUser) {
-      // In real app, this would be an API call
-      console.log('Updating user:', selectedUser.id, editForm);
-      setIsEditDialogOpen(false);
-      setSelectedUser(null);
-      // Show success message or refresh data
     }
   };
 
-  const handleCreate = () => {
+  const handleEdit = async () => {
+    if (selectedUser) {
+      const { data, error } = await supabase
+        .from("users")
+        .update({ role: editForm.role, brand: editForm.brand })
+        .eq("id", selectedUser.id);
+
+      if (error) console.error("Error updating user:", error.message);
+      else {
+        setIsEditDialogOpen(false);
+        setSelectedUser(null);
+        // Show success message or refresh data
+      }
+    }
+  };
+
+  const handleCreate = async () => {
     if (createForm.email) {
-      // In real app, this would be an API call
-      console.log('Creating user:', createForm);
-      setIsCreateDialogOpen(false);
-      setCreateForm({ email: '', role: 'sales_agent', brand: '' });
-      // Show success message or refresh data
+      const { data, error } = await supabase
+        .from("users")
+        .insert({ email: createForm.email, password: createForm.password, role: createForm.role, brand: createForm.brand });
+
+      if (error) console.error("Error creating user:", error.message);
+      else {
+        setIsCreateDialogOpen(false);
+        setCreateForm({ email: '', password: '', role: 'sales', brand: '' });
+        // Show success message or refresh data
+      }
     }
   };
 
@@ -149,7 +181,7 @@ export default function Users() {
             <SelectContent>
               <SelectItem value="all">All Roles</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="sales_agent">Sales Agent</SelectItem>
+              <SelectItem value="sales">Sales</SelectItem>
               <SelectItem value="support">Support</SelectItem>
             </SelectContent>
           </Select>
@@ -239,7 +271,6 @@ export default function Users() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-medium text-foreground text-sm sm:text-base truncate">{selectedUser.email}</h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground">User ID: {selectedUser.id}</p>
                   </div>
                 </div>
                 
@@ -290,113 +321,162 @@ export default function Users() {
           </DialogContent>
         </Dialog>
 
-        {/* Edit User Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-sm sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-lg sm:text-xl">Edit User</DialogTitle>
-              <DialogDescription className="text-sm">
-                Update user information and permissions
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-email" className="text-sm">Email</Label>
-                <Input 
-                  id="edit-email"
-                  value={editForm.email} 
-                  onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                  placeholder="user@autodealer.com"
-                  className="text-sm"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit-role" className="text-sm">Role</Label>
-                <Select value={editForm.role} onValueChange={(value) => setEditForm({...editForm, role: value as User['role']})}>
-                  <SelectTrigger className="text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="sales_agent">Sales Agent</SelectItem>
-                    <SelectItem value="support">Support</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit-brand" className="text-sm">Brand (Optional)</Label>
-                <Input 
-                  id="edit-brand"
-                  value={editForm.brand} 
-                  onChange={(e) => setEditForm({...editForm, brand: e.target.value})}
-                  placeholder="BMW, Mercedes-Benz, etc."
-                  className="text-sm"
-                />
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-2 pt-4">
-                <Button onClick={handleEdit} className="flex-1 text-sm">Update User</Button>
-                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="text-sm">Cancel</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+       {/* Edit User Dialog */}
+<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+  <DialogContent className="max-w-sm sm:max-w-md">
+    <DialogHeader>
+      <DialogTitle className="text-lg sm:text-xl">Edit User</DialogTitle>
+      <DialogDescription className="text-sm">
+        Update user information and permissions
+      </DialogDescription>
+    </DialogHeader>
+    <div className="space-y-4">
+      {/* Email */}
+      <div className="space-y-2">
+        <Label htmlFor="edit-email" className="text-sm">Email</Label>
+        <Input 
+          id="edit-email"
+          value={editForm.email} 
+          onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+          placeholder="user@autodealer.com"
+          className="text-sm"
+        />
+      </div>
+      
+      {/* Role */}
+      <div className="space-y-2">
+        <Label htmlFor="edit-role" className="text-sm">Role</Label>
+        <Select 
+          value={editForm.role} 
+          onValueChange={(value) => setEditForm({ ...editForm, role: value as User["role"], brand: "" })}
+        >
+          <SelectTrigger className="text-sm">
+            <SelectValue placeholder="Select role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="admin">Admin</SelectItem>
+            <SelectItem value="sales">Sales</SelectItem>
+            <SelectItem value="support">Support</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Show brands only if role === sales */}
+      {editForm.role === "sales" && (
+        <div className="space-y-2">
+          <Label htmlFor="edit-brand" className="text-sm">Brand</Label>
+          <Select 
+            value={editForm.brand || ""} 
+            onValueChange={(value) => setEditForm({ ...editForm, brand: value })}
+          >
+            <SelectTrigger className="text-sm">
+              <SelectValue placeholder="Select brand" />
+            </SelectTrigger>
+            <SelectContent>
+              {brands.map((brand) => (
+                <SelectItem key={brand} value={brand}>
+                  {brand}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row gap-2 pt-4">
+        <Button onClick={handleEdit} className="flex-1 text-sm">Update User</Button>
+        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="text-sm">Cancel</Button>
+      </div>
+    </div>
+  </DialogContent>
+</Dialog>
+
 
         {/* Create User Dialog */}
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-sm sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-lg sm:text-xl">Add New User</DialogTitle>
-              <DialogDescription className="text-sm">
-                Create a new user account for the system
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="create-email" className="text-sm">Email</Label>
-                <Input 
-                  id="create-email"
-                  value={createForm.email} 
-                  onChange={(e) => setCreateForm({...createForm, email: e.target.value})}
-                  placeholder="user@autodealer.com"
-                  className="text-sm"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="create-role" className="text-sm">Role</Label>
-                <Select value={createForm.role} onValueChange={(value) => setCreateForm({...createForm, role: value as User['role']})}>
-                  <SelectTrigger className="text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="sales_agent">Sales Agent</SelectItem>
-                    <SelectItem value="support">Service Advisor</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="create-brand" className="text-sm">Brand (Optional)</Label>
-                <Input 
-                  id="create-brand"
-                  value={createForm.brand} 
-                  onChange={(e) => setCreateForm({...createForm, brand: e.target.value})}
-                  placeholder="BMW, Mercedes-Benz, etc."
-                  className="text-sm"
-                />
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-2 pt-4">
-                <Button onClick={handleCreate} className="flex-1 text-sm">Create User</Button>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="text-sm">Cancel</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+  <DialogContent className="max-w-sm sm:max-w-md">
+    <DialogHeader>
+      <DialogTitle className="text-lg sm:text-xl">Add New User</DialogTitle>
+      <DialogDescription className="text-sm">
+        Create a new user account for the system
+      </DialogDescription>
+    </DialogHeader>
+    <div className="space-y-4">
+      {/* Email */}
+      <div className="space-y-2">
+        <Label htmlFor="create-email" className="text-sm">Email</Label>
+        <Input 
+          id="create-email"
+          value={createForm.email} 
+          onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+          placeholder="user@autodealer.com"
+          className="text-sm"
+        />
+      </div>
+
+      {/* Password */}
+<div className="space-y-2">
+  <Label htmlFor="create-password" className="text-sm">Password</Label>
+  <Input 
+    id="create-password"
+    type="password"
+    value={createForm.password || ""}
+    onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+    placeholder="Enter password"
+    className="text-sm"
+  />
+</div>
+
+      {/* Role */}
+      <div className="space-y-2">
+        <Label htmlFor="create-role" className="text-sm">Role</Label>
+        <Select 
+          value={createForm.role} 
+          onValueChange={(value) => setCreateForm({ ...createForm, role: value as User["role"], brand: "" })}
+        >
+          <SelectTrigger className="text-sm">
+            <SelectValue placeholder="Select role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="admin">Admin</SelectItem>
+            <SelectItem value="sales">Sales</SelectItem>
+            <SelectItem value="support">Support</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Show brands only if role === sales */}
+      {createForm.role === "sales" && (
+        <div className="space-y-2">
+          <Label htmlFor="create-brand" className="text-sm">Brand</Label>
+          <Select 
+            value={createForm.brand || ""} 
+            onValueChange={(value) => setCreateForm({ ...createForm, brand: value })}
+          >
+            <SelectTrigger className="text-sm">
+              <SelectValue placeholder="Select brand" />
+            </SelectTrigger>
+            <SelectContent>
+              {brands.map((brand) => (
+                <SelectItem key={brand} value={brand}>
+                  {brand}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex flex-col sm:flex-row gap-2 pt-4">
+        <Button onClick={handleCreate} className="flex-1 text-sm">Create User</Button>
+        <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="text-sm">Cancel</Button>
+      </div>
+    </div>
+  </DialogContent>
+</Dialog>
+
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
