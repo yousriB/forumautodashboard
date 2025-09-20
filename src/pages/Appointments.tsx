@@ -167,9 +167,7 @@ export default function Appointments() {
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Appointment Requests</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-2">Manage customer appointments and schedule new visits</p>
           </div>
-          <Button className="flex items-center gap-2 w-full sm:w-auto">
-            <Plus className="h-4 w-4" />New Appointment
-          </Button>
+         
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
@@ -279,7 +277,7 @@ export default function Appointments() {
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button variant="ghost" size="sm" onClick={() => setSelectedAppointment(appointment)}>
-                              <Eye className="h-4 w-4" />
+                              <Edit className="h-4 w-4" />
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="max-w-2xl">
@@ -344,7 +342,6 @@ export default function Appointments() {
                             )}
                           </DialogContent>
                         </Dialog>
-                        <Button variant="ghost" size="sm"><Edit className="h-4 w-4" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>

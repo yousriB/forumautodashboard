@@ -41,24 +41,22 @@ import { Search, Filter, Eye, Edit, Trash2, Plus, User, Shield, Car } from "luci
 interface User {
   id: string;
   email: string;
-  role: 'admin' | 'manager' | 'sales_agent' | 'service_advisor';
+  role: 'admin' |'sales_agent' | 'support';
   brand: string | null;
   created_at: string;
 }
 
 const sampleUsers: User[] = [
   { id: "1", email: "admin@autodealer.com", role: "admin", brand: null, created_at: "2024-01-01T08:00:00Z" },
-  { id: "2", email: "john.manager@autodealer.com", role: "manager", brand: "BMW", created_at: "2024-01-05T09:30:00Z" },
   { id: "3", email: "sarah.sales@autodealer.com", role: "sales_agent", brand: "Mercedes-Benz", created_at: "2024-01-10T10:15:00Z" },
   { id: "4", email: "mike.sales@autodealer.com", role: "sales_agent", brand: "Audi", created_at: "2024-01-12T14:20:00Z" },
-  { id: "5", email: "emma.service@autodealer.com", role: "service_advisor", brand: "Tesla", created_at: "2024-01-15T11:45:00Z" }
+  { id: "5", email: "emma.support@autodealer.com", role: "support", brand: "Tesla", created_at: "2024-01-15T11:45:00Z" }
 ];
 
 const roleColors = {
   admin: "bg-red-500 text-white",
-  manager: "bg-purple-500 text-white", 
   sales_agent: "bg-blue-500 text-white",
-  service_advisor: "bg-green-500 text-white",
+  support: "bg-green-500 text-white",
 };
 
 export default function Users() {
@@ -151,9 +149,8 @@ export default function Users() {
             <SelectContent>
               <SelectItem value="all">All Roles</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="manager">Manager</SelectItem>
               <SelectItem value="sales_agent">Sales Agent</SelectItem>
-              <SelectItem value="service_advisor">Service Advisor</SelectItem>
+              <SelectItem value="support">Support</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -322,9 +319,8 @@ export default function Users() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
                     <SelectItem value="sales_agent">Sales Agent</SelectItem>
-                    <SelectItem value="service_advisor">Service Advisor</SelectItem>
+                    <SelectItem value="support">Support</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -377,9 +373,8 @@ export default function Users() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
                     <SelectItem value="sales_agent">Sales Agent</SelectItem>
-                    <SelectItem value="service_advisor">Service Advisor</SelectItem>
+                    <SelectItem value="support">Service Advisor</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

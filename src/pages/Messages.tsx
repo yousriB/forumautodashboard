@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Filter, Eye, MessageSquare, Clock, CheckCircle, Mail, Reply } from "lucide-react";
+import { Search, Filter, Eye, MessageSquare, Clock, CheckCircle, Mail, Reply, CheckCheck } from "lucide-react";
 
 // Types based on your contact_messages schema
 interface ContactMessage {
@@ -276,22 +276,13 @@ export default function Messages() {
 
                                 {message.status !== 'responded' && (
                                   <div className="space-y-3">
-                                    <div className="space-y-2">
-                                      <label className="text-sm font-medium">Reply:</label>
-                                      <Textarea
-                                        value={replyText}
-                                        onChange={(e) => setReplyText(e.target.value)}
-                                        placeholder="Type your reply..."
-                                        className="min-h-[100px]"
-                                      />
-                                    </div>
                                     <div className="flex gap-2">
-                                      <Button onClick={handleReply} className="flex items-center gap-1">
-                                        <Reply className="h-4 w-4" />
-                                        Send Reply
+                                    <Button variant="outline" >
+                                          <CheckCheck className="h-4 w-4 mr-1" />
+                                          Respond
                                       </Button>
-                                      <Button variant="outline" asChild>
-                                        <a href={`mailto:${message.email}`}>
+                                      <Button >
+                                        <a href={`mailto:${message.email}`} className="flex items-center gap-1">
                                           <Mail className="h-4 w-4 mr-1" />
                                           Open in Email Client
                                         </a>

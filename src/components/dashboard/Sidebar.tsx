@@ -2,7 +2,6 @@ import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  ShoppingCart,
   Calendar,
   MessageCircle,
   Users,
@@ -16,11 +15,10 @@ import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Sales", href: "/sales", icon: ShoppingCart },
+  { name: "Devis Requests", href: "/devis", icon: FileText },
   { name: "Appointments", href: "/appointments", icon: Calendar },
   { name: "Messages", href: "/messages", icon: MessageCircle },
   { name: "Test Drive", href: "/testdrive", icon: CarFrontIcon },
-  { name: "Devis Requests", href: "/devis", icon: FileText },
   { name: "Users", href: "/users", icon: Users },
   { name: "Settings", href: "/settings", icon: Settings },
 ];

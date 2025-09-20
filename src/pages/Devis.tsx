@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Filter, Eye, FileText, Car, User, DollarSign, Mail, Phone, MapPin } from "lucide-react";
+import { Search, Filter, Eye, FileText, Car, User, DollarSign, Mail, Phone, MapPin , CheckCheck} from "lucide-react";
 
 // Standard devis requests
 interface DevisRequest {
@@ -368,16 +368,7 @@ export default function Devis() {
                             <Button variant="ghost" size="sm" onClick={() => viewRequest(request, 'standard')}>
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {request.status === 'pending' && (
-                              <Button variant="outline" size="sm" onClick={() => openResponseDialog(request, 'standard')}>
-                                Respond
-                              </Button>
-                            )}
-                            {request.status === 'processing' && (
-                              <Button variant="outline" size="sm" onClick={() => updateDevisStatus(request.id, 'completed', 'standard')}>
-                                Complete
-                              </Button>
-                            )}
+                           
                           </div>
                         </TableCell>
                       </TableRow>
@@ -453,16 +444,6 @@ export default function Devis() {
                             <Button variant="ghost" size="sm" onClick={() => viewRequest(request, 'custom')}>
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {request.status === 'pending' && (
-                              <Button variant="outline" size="sm" onClick={() => openResponseDialog(request, 'custom')}>
-                                Respond
-                              </Button>
-                            )}
-                            {request.status === 'processing' && (
-                              <Button variant="outline" size="sm" onClick={() => updateDevisStatus(request.id, 'completed', 'custom')}>
-                                Complete
-                              </Button>
-                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -568,7 +549,15 @@ export default function Devis() {
                       setIsViewDialogOpen(false);
                       openResponseDialog(selectedRequest, requestType);
                     }}>
-                      Send Response
+                      <CheckCheck className="h-4 w-4 mr-2" />
+                      processing
+                      
+                    </Button>
+                  )}
+                  {selectedRequest.status === 'processing' && (
+                    <Button onClick={() => updateDevisStatus(selectedRequest.id, 'completed', 'custom')}>
+                      <CheckCheck className="h-4 w-4 mr-2" />
+                      Completed
                     </Button>
                   )}
                   <Button variant="outline" asChild>
@@ -589,46 +578,6 @@ export default function Devis() {
                 </div>
               </div>
             )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Response Dialog */}
-        <Dialog open={isResponseDialogOpen} onOpenChange={setIsResponseDialogOpen}>
-          <DialogContent className="max-w-sm sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-lg sm:text-xl">Send Devis Response</DialogTitle>
-              <DialogDescription className="text-sm">
-                Provide pricing and details for this devis request
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="response-price" className="text-sm">Final Price</Label>
-                <Input 
-                  id="response-price"
-                  value={responsePrice} 
-                  onChange={(e) => setResponsePrice(e.target.value)}
-                  placeholder="$45,000"
-                  className="text-sm"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="response-message" className="text-sm">Response Message</Label>
-                <Textarea 
-                  id="response-message"
-                  value={responseText} 
-                  onChange={(e) => setResponseText(e.target.value)}
-                  placeholder="Thank you for your interest. Here is our detailed quote..."
-                  className="min-h-[80px] sm:min-h-[100px] text-sm"
-                />
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-2 pt-4">
-                <Button onClick={sendResponse} className="flex-1 text-sm">Send Response</Button>
-                <Button variant="outline" onClick={() => setIsResponseDialogOpen(false)} className="text-sm">Cancel</Button>
-              </div>
-            </div>
           </DialogContent>
         </Dialog>
       </div>
