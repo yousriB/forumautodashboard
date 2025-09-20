@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Filter, Eye, MessageSquare, Clock, CheckCircle, Mail, Reply, CheckCheck } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 // Types based on your contact_messages schema
 interface ContactMessage {
@@ -38,50 +39,6 @@ interface ContactMessage {
   created_at: string;
   status: 'unread' | 'read' | 'responded';
 }
-
-// Sample data - replace with actual API calls
-const sampleMessages: ContactMessage[] = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    email: "sarah.johnson@email.com",
-    message: "I'm interested in the BMW X5 2024. Could you please provide more information about financing options and availability?",
-    created_at: "2024-01-15T10:30:00Z",
-    status: "unread"
-  },
-  {
-    id: "2",
-    name: "Mike Davis",
-    email: "mike.davis@email.com",
-    message: "Hello, I would like to schedule a test drive for the Mercedes C-Class. I'm available this weekend.",
-    created_at: "2024-01-14T14:20:00Z",
-    status: "read"
-  },
-  {
-    id: "3",
-    name: "Emma Wilson",
-    email: "emma.wilson@email.com",
-    message: "Do you have any electric vehicles available? I'm particularly interested in Tesla models or similar alternatives.",
-    created_at: "2024-01-13T16:45:00Z",
-    status: "responded"
-  },
-  {
-    id: "4",
-    name: "David Brown",
-    email: "david.brown@email.com",
-    message: "I received a quote last week but haven't heard back. Could someone please follow up on my request for the Audi A4?",
-    created_at: "2024-01-12T09:15:00Z",
-    status: "unread"
-  },
-  {
-    id: "5",
-    name: "Lisa Chen",
-    email: "lisa.chen@email.com",
-    message: "Thank you for the excellent service during my recent purchase. I would like to refer my friend who is looking for a family SUV.",
-    created_at: "2024-01-11T11:30:00Z",
-    status: "read"
-  }
-];
 
 const statusColors = {
   unread: "bg-warning text-warning-foreground",
@@ -99,35 +56,112 @@ export default function Messages() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
-  const [replyText, setReplyText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
 
-  const filteredMessages = sampleMessages.filter((message) => {
-    const matchesSearch = message.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         message.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         message.message.toLowerCase().includes(searchTerm.toLowerCase());
+  const handleRespond = async (messageId: string) => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('contact_messages')
+        .update({ status: 'responded' })
+        .eq('id', messageId);
+
+      if (error) {
+        console.error('Error updating message status:', error);
+        setError('Failed to update message status');
+      } else {
+        fetchMessages();
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch messages from Supabase
+  const fetchMessages = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('contact_messages')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching messages:', error);
+        setError('Failed to load messages');
+      } else {
+        setMessages(data || []);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    fetchMessages();
+
+    // Optional: Real-time updates
+    const channel = supabase
+      .channel('contact_messages')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'contact_messages' },
+        (payload) => {
+          console.log('Change received!', payload);
+          fetchMessages(); // Refetch on any change
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+
+  // Filter messages based on search and status
+  const filteredMessages = messages.filter((message) => {
+    const matchesSearch = 
+      message.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      message.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      message.message.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || message.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const handleReply = () => {
-    if (selectedMessage && replyText.trim()) {
-      alert(`Reply sent to ${selectedMessage.email}!`);
-      const messageIndex = sampleMessages.findIndex(m => m.id === selectedMessage.id);
-      if (messageIndex !== -1) {
-        sampleMessages[messageIndex].status = 'responded';
-      }
-      setReplyText("");
-      setSelectedMessage(null);
-      window.location.reload();
+  // Mark message as read (optimistic + sync with Supabase)
+  const markAsRead = async (messageId: string) => {
+    // Optimistic UI update
+    setMessages(prev => 
+      prev.map(msg => 
+        msg.id === messageId && msg.status === 'unread' 
+          ? { ...msg, status: 'read' } 
+          : msg
+      )
+    );
+
+    // Update in Supabase
+    const { error } = await supabase
+      .from('contact_messages')
+      .update({ status: 'read' })
+      .eq('id', messageId);
+
+    if (error) {
+      console.error('Failed to update message status:', error);
+      // Rollback by refetching
+      fetchMessages();
     }
   };
 
-  const markAsRead = (messageId: string) => {
-    const messageIndex = sampleMessages.findIndex(m => m.id === messageId);
-    if (messageIndex !== -1 && sampleMessages[messageIndex].status === 'unread') {
-      sampleMessages[messageIndex].status = 'read';
-    }
-  };
 
   return (
     <DashboardLayout>
@@ -143,7 +177,7 @@ export default function Messages() {
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="flex items-center gap-1 text-xs sm:text-sm">
               <MessageSquare className="h-3 w-3" />
-              {sampleMessages.filter(m => m.status === 'unread').length} Unread
+              {messages.filter(m => m.status === 'unread').length} Unread
             </Badge>
           </div>
         </div>
@@ -173,150 +207,176 @@ export default function Messages() {
           </Select>
         </div>
 
-        {/* Messages Table */}
-        <div className="dashboard-card">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead className="hidden md:table-cell">Message Preview</TableHead>
-                  <TableHead className="hidden sm:table-cell">Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMessages.map((message) => {
-                  const StatusIcon = statusIcons[message.status];
-                  return (
-                    <TableRow 
-                      key={message.id} 
-                      className={`table-row-hover ${message.status === 'unread' ? 'bg-secondary/30' : ''}`}
-                    >
-                      <TableCell>
-                      <div>
-                      <div className={`font-medium ${message.status === 'unread' ? 'font-bold' : ''} text-foreground`}>
-                      {message.name}
-                      </div>
-                      <div className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      <span className="truncate">{message.email}</span>
-                      </div>
-                        <div className="md:hidden mt-1">
-                            <p className="text-xs text-muted-foreground line-clamp-2">
-                            {message.message.length > 60 
-                              ? `${message.message.substring(0, 60)}...` 
-                              : message.message
-                            }
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <div className="max-w-md">
-                          <p className="text-sm text-foreground line-clamp-2">
-                            {message.message.length > 100 
-                              ? `${message.message.substring(0, 100)}...` 
-                              : message.message
-                            }
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground hidden sm:table-cell">
-                        <div className="text-sm">
-                          <div>{new Date(message.created_at).toLocaleDateString()}</div>
-                          <div className="text-xs opacity-75">
-                            {new Date(message.created_at).toLocaleTimeString([], { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={statusColors[message.status]}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {message.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedMessage(message);
-                                  markAsRead(message.id);
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
-                              <DialogHeader>
-                                <DialogTitle>Message from {message.name}</DialogTitle>
-                                <DialogDescription>
-                                  Received on {new Date(message.created_at).toLocaleString()}
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Mail className="h-4 w-4" />
-                                    {message.email}
-                                  </div>
-                                </div>
-                                
-                                <div className="p-4 bg-secondary rounded-lg">
-                                  <p className="text-foreground whitespace-pre-wrap">{message.message}</p>
-                                </div>
+        {/* Loading & Error States */}
+        {loading && (
+          <div className="dashboard-card py-8 text-center">
+            <p className="text-muted-foreground">Loading messages...</p>
+          </div>
+        )}
 
-                                {message.status !== 'responded' && (
-                                  <div className="space-y-3">
-                                    <div className="flex gap-2">
-                                    <Button variant="outline" >
-                                          <CheckCheck className="h-4 w-4 mr-1" />
-                                          Respond
-                                      </Button>
-                                      <Button >
-                                        <a href={`mailto:${message.email}`} className="flex items-center gap-1">
-                                          <Mail className="h-4 w-4 mr-1" />
-                                          Open in Email Client
-                                        </a>
-                                      </Button>
+        {error && (
+          <div className="dashboard-card py-8 text-center">
+            <p className="text-destructive">{error}</p>
+            <Button variant="outline" size="sm" onClick={fetchMessages} className="mt-2">
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {!loading && !error && filteredMessages.length === 0 && (
+          <div className="dashboard-card py-8 text-center">
+            <p className="text-muted-foreground">No messages found.</p>
+          </div>
+        )}
+
+        {/* Messages Table */}
+        {!loading && !error && filteredMessages.length > 0 && (
+          <div className="dashboard-card">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="hidden md:table-cell">Message Preview</TableHead>
+                    <TableHead className="hidden sm:table-cell">Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredMessages.map((message) => {
+                    const StatusIcon = statusIcons[message.status];
+                    return (
+                      <TableRow 
+                        key={message.id} 
+                        className={`table-row-hover ${message.status === 'unread' ? 'bg-secondary/30' : ''}`}
+                      >
+                        <TableCell>
+                          <div>
+                            <div className={`font-medium ${message.status === 'unread' ? 'font-bold' : ''} text-foreground`}>
+                              {message.name}
+                            </div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              <span className="truncate">{message.email}</span>
+                            </div>
+                            <div className="md:hidden mt-1">
+                              <p className="text-xs text-muted-foreground line-clamp-2">
+                                {message.message.length > 60 
+                                  ? `${message.message.substring(0, 60)}...` 
+                                  : message.message
+                                }
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <div className="max-w-md">
+                            <p className="text-sm text-foreground line-clamp-2">
+                              {message.message.length > 100 
+                                ? `${message.message.substring(0, 100)}...` 
+                                : message.message
+                              }
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground hidden sm:table-cell">
+                          <div className="text-sm">
+                            <div>{new Date(message.created_at).toLocaleDateString()}</div>
+                            <div className="text-xs opacity-75">
+                              {new Date(message.created_at).toLocaleTimeString([], { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={statusColors[message.status]}>
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            {message.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedMessage(message);
+                                    if (message.status === 'unread') {
+                                      markAsRead(message.id);
+                                    }
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle>Message from {message.name}</DialogTitle>
+                                  <DialogDescription>
+                                    Received on {new Date(message.created_at).toLocaleString()}
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                      <Mail className="h-4 w-4" />
+                                      {message.email}
                                     </div>
                                   </div>
-                                )}
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                                  
+                                  <div className="p-4 bg-secondary rounded-lg">
+                                    <p className="text-foreground whitespace-pre-wrap">{message.message}</p>
+                                  </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-border">
-            <div className="text-sm text-muted-foreground">
-              Showing {filteredMessages.length} of {sampleMessages.length} messages
+                                  {message.status !== 'responded' && (
+                                    <div className="space-y-3">
+                                      <div className="flex gap-2">
+                                        <Button onClick={() => handleRespond(message.id)} variant="outline">
+                                          <CheckCheck className="h-4 w-4 mr-1" />
+                                          Respond
+                                        </Button>
+                                        <Button>
+                                          <a href={`mailto:${message.email}`} className="flex items-center gap-1">
+                                            <Mail className="h-4 w-4 mr-1" />
+                                            Open in Email Client
+                                          </a>
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm">
-                Next
-              </Button>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-border">
+              <div className="text-sm text-muted-foreground">
+                Showing {filteredMessages.length} of {messages.length} messages
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled>
+                  Previous
+                </Button>
+                <Button variant="outline" size="sm">
+                  Next
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </DashboardLayout>
   );
