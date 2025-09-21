@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,8 +27,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Search, Filter, Eye, FileText, Car, User, DollarSign, Mail, Phone, MapPin , CheckCheck} from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
+
 
 // Standard devis requests
 interface DevisRequest {
@@ -66,75 +67,6 @@ interface CustomDevisRequest {
   responded_at: string | null;
 }
 
-const sampleDevisRequests: DevisRequest[] = [
-  {
-    id: "DV001",
-    car_brand: "BMW",
-    car_model: "X5",
-    car_version: "xDrive40i",
-    car_price: "$65,000",
-    first_name: "Ahmed",
-    last_name: "Ben Ali",
-    email: "ahmed.benali@email.com",
-    phone_number: "+216 20 123 456",
-    cin_or_nf: "12345678",
-    created_at: "2024-01-15T10:30:00Z",
-    status: "pending",
-    responded_by: null,
-    responded_at: null
-  },
-  {
-    id: "DV002",
-    car_brand: "Mercedes-Benz",
-    car_model: "C-Class",
-    car_version: "C300",
-    car_price: "$45,000",
-    first_name: "Fatma",
-    last_name: "Trabelsi",
-    email: "fatma.trabelsi@email.com",
-    phone_number: "+216 25 987 654",
-    cin_or_nf: "87654321",
-    created_at: "2024-01-14T14:20:00Z",
-    status: "processing",
-    responded_by: "user-123",
-    responded_at: "2024-01-14T15:00:00Z"
-  }
-];
-
-const sampleCustomDevisRequests: CustomDevisRequest[] = [
-  {
-    id: "CDV001",
-    first_name: "Mohamed",
-    last_name: "Hamdi",
-    phone_number: "+216 22 555 777",
-    cin_or_nf: "11223344",
-    email: "mohamed.hamdi@email.com",
-    car_brand: "Audi",
-    car_model: "A4",
-    car_version: "Premium Plus",
-    region: "Tunis",
-    created_at: "2024-01-13T09:15:00Z",
-    status: "completed",
-    responded_by: "user-456",
-    responded_at: "2024-01-13T16:30:00Z"
-  },
-  {
-    id: "CDV002",
-    first_name: "Leila",
-    last_name: "Bouaziz",
-    phone_number: "+216 24 333 888",
-    cin_or_nf: "55667788",
-    email: "leila.bouaziz@email.com",
-    car_brand: "Tesla",
-    car_model: "Model 3",
-    car_version: "Long Range",
-    region: "Sfax",
-    created_at: "2024-01-12T11:45:00Z",
-    status: "pending",
-    responded_by: null,
-    responded_at: null
-  }
-];
 
 const statusColors = {
   pending: "bg-warning text-warning-foreground",
@@ -152,6 +84,10 @@ export default function Devis() {
   const [isResponseDialogOpen, setIsResponseDialogOpen] = useState(false);
   const [responseText, setResponseText] = useState("");
   const [responsePrice, setResponsePrice] = useState("");
+  const [customDevisRequests, setCustomDevisRequests] = useState<CustomDevisRequest[]>([]);
+  const [standardDevisRequests, setStandardDevisRequests] = useState<DevisRequest[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const filterRequests = (requests: any[]) => {
     return requests.filter((request) => {
@@ -171,36 +107,112 @@ export default function Devis() {
     setIsViewDialogOpen(true);
   };
 
-  const openResponseDialog = (request: DevisRequest | CustomDevisRequest, type: 'standard' | 'custom') => {
-    setSelectedRequest(request);
-    setRequestType(type);
-    setResponseText("");
-    setResponsePrice("");
-    setIsResponseDialogOpen(true);
-  };
 
-  const updateDevisStatus = (requestId: string, newStatus: string, type: 'standard' | 'custom') => {
-    const requests = type === 'standard' ? sampleDevisRequests : sampleCustomDevisRequests;
-    const requestIndex = requests.findIndex(r => r.id === requestId);
-    if (requestIndex !== -1) {
-      requests[requestIndex].status = newStatus as any;
-      requests[requestIndex].responded_by = "current-user";
-      requests[requestIndex].responded_at = new Date().toISOString();
-      setIsResponseDialogOpen(false);
-      // In real app, this would refresh the data
+  const updateDevisStatus = async (requestId: string, newStatus: 'pending' | 'processing' | 'completed' | 'rejected', type: 'standard' | 'custom') => {
+    try {
+      setLoading(true);
+      const tableName = type === 'standard' ? 'devis_requests' : 'custom_devis_requests';
+      const { data, error } = await supabase
+        .from(tableName)
+        .update({ 
+          status: newStatus,
+          responded_at: new Date().toISOString(),
+          // You might want to add user ID of the admin who responded
+          // responded_by: currentUser?.id
+          
+
+        })
+        .eq('id', requestId)
+        .select();
+
+      if (error) {
+        console.error('Error updating devis status:', error);
+        setError('Failed to update devis status');
+        return;
+      }
+
+      // Update the local state to reflect the change immediately
+      if (type === 'standard') {
+        setStandardDevisRequests(prev => 
+          prev.map(req => 
+            req.id === requestId ? { ...req, status: newStatus } : req
+          )
+        );
+      } else {
+        setCustomDevisRequests(prev => 
+          prev.map(req => 
+            req.id === requestId ? { ...req, status: newStatus } : req
+          )
+        );
+      }
+
+      // Refresh the data from the server to ensure consistency
+      if (type === 'standard') {
+        await fetchStandardDevisRequests();
+      } else {
+        await fetchCustomDevisRequests();
+      }
+
+    } catch (error) {
+      console.error('Error updating devis status:', error);
+      setError('Failed to update devis status');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const sendResponse = () => {
-    if (selectedRequest && responseText.trim()) {
-      updateDevisStatus(selectedRequest.id, 'completed', requestType);
-      setResponseText("");
-      setResponsePrice("");
+  const fetchCustomDevisRequests = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('custom_devis_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching appointments:', error);
+        setError('Failed to load appointments');
+      } else {
+        setCustomDevisRequests(data || []);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const filteredDevis = filterRequests(sampleDevisRequests);
-  const filteredCustomDevis = filterRequests(sampleCustomDevisRequests);
+  const fetchStandardDevisRequests = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('devis_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching appointments:', error);
+        setError('Failed to load appointments');
+      } else {
+        setStandardDevisRequests(data || []);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomDevisRequests();
+    fetchStandardDevisRequests();
+  }, []);
+
+
+  const filteredDevis = filterRequests(standardDevisRequests);
+  const filteredCustomDevis = filterRequests(customDevisRequests);
 
   return (
     <DashboardLayout>
@@ -221,7 +233,7 @@ export default function Devis() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-muted-foreground truncate">Total Requests</p>
-                <p className="text-lg sm:text-2xl font-bold text-foreground">{sampleDevisRequests.length + sampleCustomDevisRequests.length}</p>
+                <p className="text-lg sm:text-2xl font-bold text-foreground">{standardDevisRequests.length + customDevisRequests.length}</p>
               </div>
             </div>
           </div>
@@ -233,7 +245,7 @@ export default function Devis() {
               <div>
                 <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="text-2xl font-bold text-foreground">
-                  {[...sampleDevisRequests, ...sampleCustomDevisRequests].filter(r => r.status === 'pending').length}
+                  {[...standardDevisRequests, ...customDevisRequests].filter(r => r.status === 'pending').length}
                 </p>
               </div>
             </div>
@@ -246,7 +258,7 @@ export default function Devis() {
               <div>
                 <p className="text-sm text-muted-foreground">Processing</p>
                 <p className="text-2xl font-bold text-foreground">
-                  {[...sampleDevisRequests, ...sampleCustomDevisRequests].filter(r => r.status === 'processing').length}
+                  {[...standardDevisRequests, ...customDevisRequests].filter(r => r.status === 'processing').length}
                 </p>
               </div>
             </div>
@@ -259,7 +271,7 @@ export default function Devis() {
               <div>
                 <p className="text-sm text-muted-foreground">Completed</p>
                 <p className="text-2xl font-bold text-foreground">
-                  {[...sampleDevisRequests, ...sampleCustomDevisRequests].filter(r => r.status === 'completed').length}
+                  {[...standardDevisRequests, ...customDevisRequests].filter(r => r.status === 'completed').length}
                 </p>
               </div>
             </div>
@@ -368,6 +380,23 @@ export default function Devis() {
                             <Button variant="ghost" size="sm" onClick={() => viewRequest(request, 'standard')}>
                               <Eye className="h-4 w-4" />
                             </Button>
+                            <Select 
+                              value={request.status} 
+                              onValueChange={(value: 'pending' | 'processing' | 'completed' | 'rejected') => 
+                                updateDevisStatus(request.id, value, 'standard')
+                              }
+                              disabled={loading}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue placeholder="Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="processing">Processing</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                              </SelectContent>
+                            </Select>
                            
                           </div>
                         </TableCell>
@@ -444,6 +473,23 @@ export default function Devis() {
                             <Button variant="ghost" size="sm" onClick={() => viewRequest(request, 'custom')}>
                               <Eye className="h-4 w-4" />
                             </Button>
+                            <Select 
+                              value={request.status} 
+                              onValueChange={(value: 'pending' | 'processing' | 'completed' | 'rejected') => 
+                                updateDevisStatus(request.id, value, 'custom')
+                              }
+                              disabled={loading}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue placeholder="Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="processing">Processing</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -546,8 +592,7 @@ export default function Devis() {
                 <div className="flex gap-2 pt-4">
                   {selectedRequest.status === 'pending' && (
                     <Button onClick={() => {
-                      setIsViewDialogOpen(false);
-                      openResponseDialog(selectedRequest, requestType);
+                      updateDevisStatus(selectedRequest.id, 'processing', 'custom');
                     }}>
                       <CheckCheck className="h-4 w-4 mr-2" />
                       processing
