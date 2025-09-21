@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import bcrypt from 'bcryptjs';
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,7 +69,7 @@ export default function Users() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
-  const [editForm, setEditForm] = useState({ email: '', role: 'sales' as User['role'], brand: '' });
+  const [editForm, setEditForm] = useState({ email: '', password: '', role: 'sales' as User['role'], brand: '' });
   const [createForm, setCreateForm] = useState({ email: '', password: '', role: 'sales' as User['role'], brand: '' });
 
   const filteredUsers = users.filter((user) => {
@@ -99,7 +100,12 @@ export default function Users() {
 
   const editUser = (user: User) => {
     setSelectedUser(user);
-    setEditForm({ email: user.email, role: user.role, brand: user.brand || '' });
+    setEditForm({ 
+      email: user.email, 
+      password: '', // Initialize with empty password
+      role: user.role, 
+      brand: user.brand || '' 
+    });
     setIsEditDialogOpen(true);
   };
 
@@ -126,31 +132,82 @@ export default function Users() {
 
   const handleEdit = async () => {
     if (selectedUser) {
-      const { data, error } = await supabase
-        .from("users")
-        .update({ role: editForm.role, brand: editForm.brand })
-        .eq("id", selectedUser.id);
+      try {        
+        // Prepare update data
+        const updateData: any = { 
+          role: editForm.role, 
+          brand: editForm.brand 
+        };
+        
+        // Only include password in update if it's not empty
+        if (editForm.password) {
+          // Hash the new password before updating
+          const salt = await bcrypt.genSalt(10);
+          updateData.password = await bcrypt.hash(editForm.password, salt);
+        }
+        
+        const { data, error } = await supabase
+          .from("users")
+          .update(updateData)
+          .eq("id", selectedUser.id);
 
-      if (error) console.error("Error updating user:", error.message);
-      else {
-        setIsEditDialogOpen(false);
-        setSelectedUser(null);
-        // Show success message or refresh data
-      }
+        if (error) {
+          console.error("Error updating user:", error.message);
+          // You might want to show an error message to the user here
+        } else {
+          setIsEditDialogOpen(false);
+          setSelectedUser(null);
+          // Refresh users list
+          const { data: usersData, error: fetchError } = await supabase
+            .from("users")
+            .select("id, email, role, brand, created_at")
+            .order("created_at", { ascending: false });
+
+          if (!fetchError) {
+            setUsers(usersData || []);
+          }
+        }
+      } catch (err) {
+        console.error("Error updating user:", err);
+      } 
     }
   };
 
   const handleCreate = async () => {
     if (createForm.email) {
-      const { data, error } = await supabase
-        .from("users")
-        .insert({ email: createForm.email, password: createForm.password, role: createForm.role, brand: createForm.brand });
+      try {
+        // Hash the password before sending to Supabase
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(createForm.password, salt);
 
-      if (error) console.error("Error creating user:", error.message);
-      else {
-        setIsCreateDialogOpen(false);
-        setCreateForm({ email: '', password: '', role: 'sales', brand: '' });
-        // Show success message or refresh data
+        const { data, error } = await supabase
+          .from("users")
+          .insert({ 
+            email: createForm.email, 
+            password: hashedPassword, 
+            role: createForm.role, 
+            brand: createForm.brand 
+          });
+
+        if (error) {
+          console.error("Error creating user:", error.message);
+          // You might want to show an error message to the user here
+        } else {
+          setIsCreateDialogOpen(false);
+          setCreateForm({ email: '', password: '', role: 'sales', brand: '' });
+          
+          // Refresh users list
+          const { data: usersData, error: fetchError } = await supabase
+            .from("users")
+            .select("id, email, role, brand, created_at")
+            .order("created_at", { ascending: false });
+
+          if (!fetchError) {
+            setUsers(usersData || []);
+          }
+        }
+      } catch (err) {
+        console.error("Error creating user:", err);
       }
     }
   };
@@ -343,6 +400,19 @@ export default function Users() {
         />
       </div>
       
+      {/* Password (Optional) */}
+      <div className="space-y-2">
+        <Label htmlFor="edit-password" className="text-sm">New Password (leave blank to keep current)</Label>
+        <Input 
+          id="edit-password"
+          type="password"
+          value={editForm.password}
+          onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+          placeholder="Enter new password"
+          className="text-sm"
+        />
+      </div>
+
       {/* Role */}
       <div className="space-y-2">
         <Label htmlFor="edit-role" className="text-sm">Role</Label>
