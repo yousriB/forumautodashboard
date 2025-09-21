@@ -5,18 +5,75 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUser } from "@/context/UserContext";
+import { supabase } from "@/lib/supabaseClient";
+import bcrypt from "bcryptjs";
+
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { setUser } = useUser();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple mock authentication
-    if (email && password) {
-      navigate("/dashboard");
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 🔹 1. Get user by email only
+      const { data: users, error: fetchError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", email)
+        .limit(1);
+
+      if (fetchError) throw fetchError;
+
+      if (!users || users.length === 0) {
+        setError("Invalid email or password");
+        setLoading(false);
+        return;
+      }
+
+      const user = users[0];
+
+      // 🔹 2. Compare password with bcrypt
+      const isValidPassword = await bcrypt.compare(password, user.password);
+
+      if (!isValidPassword) {
+        setError("Invalid email or password");
+        setLoading(false);
+        return;
+      }
+
+      // 🔹 3. Save user info
+      setUser({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        brand: user.brand,
+      });
+
+      // 🔹 4. Redirect by role
+      if (user.role === "support") {
+        navigate("/appointments");
+      } else if (user.role === "admin") {
+        navigate("/dashboard");
+      } else if (user.role === "sales") {
+        navigate("/devis");
+      } else {
+        setError("Unknown role. Contact admin.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError("Something went wrong. Please try again.");
     }
+
+    setLoading(false);
   };
 
   return (
@@ -71,24 +128,14 @@ export default function Login() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <label className="flex items-center space-x-2 text-sm">
-                  <input type="checkbox" className="rounded border-border" />
-                  <span className="text-muted-foreground">Remember me</span>
-                </label>
-                <a href="#" className="text-sm text-primary hover:text-primary-dark transition-colors">
-                  Forgot password?
-                </a>
-              </div>
-
               <Button type="submit" className="w-full btn-primary font-medium">
                 Sign In
               </Button>
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Demo credentials: admin@autodealer.com / password
+              <p className="text-sm text-red-500">
+                {error}
               </p>
             </div>
           </CardContent>

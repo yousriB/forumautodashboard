@@ -7,6 +7,8 @@ import { User, Lock, Mail, Shield, AlertCircle, CheckCircle } from 'lucide-react
 import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import { useUser } from '@/context/UserContext';
+import bcrypt from 'bcryptjs';
 
 type UserProfile = {
   id: string;
@@ -17,7 +19,7 @@ type UserProfile = {
 };
 
 const Settings = () => {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -25,28 +27,15 @@ const Settings = () => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const { toast } = useToast();
-
+  const { user } = useUser();
+  
   useEffect(() => {
     const fetchUser = async () => {
+      if (!user) return;
       try {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-          const { data: userData } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', authUser.id)
-            .single();
-          
-          if (userData) {
-            setUser({
-              id: userData.id,
-              email: userData.email,
-              role: userData.role,
-              brand: userData.brand,
-              created_at: userData.created_at
-            });
-          }
-        }
+        const { data, error } = await supabase.from('users').select('*').eq('email', user.email).single();
+        if (error) throw error;
+        setUserProfile(data);
       } catch (error) {
         console.error('Error fetching user:', error);
         toast({
@@ -60,7 +49,7 @@ const Settings = () => {
     };
 
     fetchUser();
-  }, [toast]);
+  }, [toast, user]);
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,10 +67,11 @@ const Settings = () => {
     }
 
     try {
-      // Update password in Supabase Auth
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
+      // Update password in users table
+      const { error } = await supabase.from('users').update({ password: bcrypt.hashSync(newPassword, 10) }).eq('email', user.email);
+
+      
+     
 
       if (error) throw error;
 
@@ -178,7 +168,7 @@ const Settings = () => {
                   <Shield className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">Member since:</span>
                   <span className="text-muted-foreground">
-                    {new Date(user?.created_at || '').toLocaleDateString()}
+                    {new Date(userProfile?.created_at || '').toLocaleDateString()}
                   </span>
                 </div>
               </div>

@@ -12,15 +12,16 @@ import {
   FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUser } from "@/context/UserContext";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Devis Requests", href: "/devis", icon: FileText },
-  { name: "Appointments", href: "/appointments", icon: Calendar },
-  { name: "Messages", href: "/messages", icon: MessageCircle },
-  { name: "Test Drive", href: "/testdrive", icon: CarFrontIcon },
-  { name: "Users", href: "/users", icon: Users },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["admin"] },
+  { name: "Devis Requests", href: "/devis", icon: FileText, roles: ["admin", "sales"] },
+  { name: "Appointments", href: "/appointments", icon: Calendar, roles: ["admin", "support"] },
+  { name: "Messages", href: "/messages", icon: MessageCircle, roles: ["admin", "support"] },
+  { name: "Test Drive", href: "/testdrive", icon: CarFrontIcon, roles: ["admin", "sales"] },
+  { name: "Users", href: "/users", icon: Users, roles: ["admin"] },
+  { name: "Settings", href: "/settings", icon: Settings, roles: ["admin", "sales", "support"] },
 ];
 
 interface SidebarProps {
@@ -30,6 +31,12 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const location = useLocation();
+  const { user } = useUser();
+
+  // Filter nav items based on role
+  const filteredNav = navigation.filter((item) =>
+    item.roles.includes(user?.role || "")
+  );
 
   return (
     <>
@@ -66,7 +73,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-1">
-          {navigation.map((item) => {
+          {filteredNav.map((item) => {
             const isActive = location.pathname === item.href;
             return (
               <NavLink
@@ -88,11 +95,17 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         <div className="p-4 border-t border-border">
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center">
-              <span className="text-sm font-medium text-white">D</span>
+              {user?.role === "admin" ? (
+                <span className="text-sm font-medium text-white">A</span>
+              ) : user?.role === "sales" ? (
+                <span className="text-sm font-medium text-white">S</span>
+              ) : (
+                <span className="text-sm font-medium text-white">U</span> // support
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">Admin User</p>
-              <p className="text-xs text-muted-foreground truncate">admin@autodealer.com</p>
+              <p className="text-sm font-medium text-foreground">{user?.role}</p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
             </div>
           </div>
         </div>
