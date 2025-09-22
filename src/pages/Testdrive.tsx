@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState , useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Filter, Eye, Car, Phone, Mail, Calendar, Clock, CheckCircle, X } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 // Types based on your test_drive_requests schema
 interface TestDriveRequest {
@@ -39,54 +40,7 @@ interface TestDriveRequest {
   created_at: string;
 }
 
-// Sample data - replace with actual API calls
-const sampleTestDrives: TestDriveRequest[] = [
-  {
-    id: "TD001",
-    full_name: "Alexandra Rodriguez",
-    email: "alexandra.rodriguez@email.com",
-    phone: "+1 (555) 123-4567",
-    car_model: "BMW X5 M50i 2024",
-    status: "pending",
-    created_at: "2024-01-15T14:30:00Z"
-  },
-  {
-    id: "TD002",
-    full_name: "James Mitchell",
-    email: "james.mitchell@email.com",
-    phone: "+1 (555) 987-6543",
-    car_model: "Mercedes-Benz GLC 300",
-    status: "confirmed",
-    created_at: "2024-01-14T09:15:00Z"
-  },
-  {
-    id: "TD003",
-    full_name: "Sophia Chen",
-    email: "sophia.chen@email.com",
-    phone: "+1 (555) 456-7890",
-    car_model: "Audi Q7 Prestige",
-    status: "completed",
-    created_at: "2024-01-13T16:45:00Z"
-  },
-  {
-    id: "TD004",
-    full_name: "Michael Johnson",
-    email: "michael.johnson@email.com",
-    phone: "+1 (555) 234-5678",
-    car_model: "Tesla Model Y Performance",
-    status: "pending",
-    created_at: "2024-01-12T11:20:00Z"
-  },
-  {
-    id: "TD005",
-    full_name: "Emily Davis",
-    email: "emily.davis@email.com",
-    phone: "+1 (555) 345-6789",
-    car_model: "Lexus RX 350h",
-    status: "cancelled",
-    created_at: "2024-01-11T13:10:00Z"
-  }
-];
+
 
 const statusColors = {
   pending: "bg-warning text-warning-foreground",
@@ -104,40 +58,105 @@ const statusIcons = {
 
 export default function Testdrive() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("pending");
+  const [testDrives, setTestDrives] = useState<TestDriveRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<TestDriveRequest | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredRequests = sampleTestDrives.filter((request) => {
+  const filteredRequests = testDrives.filter((request) => {
     const matchesSearch = request.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          request.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.car_model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.phone.includes(searchTerm);
+                         request.car_model.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || request.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const updateStatus = (requestId: string, newStatus: 'pending' | 'confirmed' | 'completed' | 'cancelled') => {
-    // In real app, this would be an API call
-    const requestIndex = sampleTestDrives.findIndex(r => r.id === requestId);
-    if (requestIndex !== -1) {
-      sampleTestDrives[requestIndex].status = newStatus;
-      // Force re-render by updating state
-      setSelectedRequest(null);
-      // In a real app, you would also update the state/refetch data
-      window.location.reload(); // Temporary solution for demo
+  const updateStatus = async (requestId: string, newStatus: 'pending' | 'confirmed' | 'completed' | 'cancelled') => {
+    try {
+      // Update in Supabase
+      const { error } = await supabase
+        .from('test_drive_requests')
+        .update({ status: newStatus })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      // Update local state
+      setTestDrives(prevDrives =>
+        prevDrives.map(drive =>
+          drive.id === requestId ? { ...drive, status: newStatus } : drive
+        )
+      );
+
+      // Update selected request if it's the one being updated
+      if (selectedRequest?.id === requestId) {
+        setSelectedRequest({ ...selectedRequest, status: newStatus });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error updating status:', error);
+      return false;
     }
   };
 
   const getStatusCounts = () => {
     return {
-      total: sampleTestDrives.length,
-      pending: sampleTestDrives.filter(r => r.status === 'pending').length,
-      confirmed: sampleTestDrives.filter(r => r.status === 'confirmed').length,
-      completed: sampleTestDrives.filter(r => r.status === 'completed').length,
+      total: testDrives.length,
+      pending: testDrives.filter(r => r.status === 'pending').length,
+      confirmed: testDrives.filter(r => r.status === 'confirmed').length,
+      completed: testDrives.filter(r => r.status === 'completed').length,
+      cancelled: testDrives.filter(r => r.status === 'cancelled').length,
     };
   };
 
+  useEffect(() => {
+    const fetchTestDrives = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const { data, error } = await supabase
+          .from('test_drive_requests')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        setTestDrives(data);
+      } catch (error) {
+        console.error('Error fetching test drives:', error);
+        setError('Failed to load test drives. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTestDrives();
+  }, []);
+
   const counts = getStatusCounts();
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <div className="text-destructive mb-4">Error: {error}</div>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -217,7 +236,6 @@ export default function Testdrive() {
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
@@ -435,7 +453,7 @@ export default function Testdrive() {
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-border">
             <div className="text-sm text-muted-foreground">
-              Showing {filteredRequests.length} of {sampleTestDrives.length} requests
+              Showing {filteredRequests.length} of {testDrives.length} requests
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled>
