@@ -32,11 +32,13 @@ interface SidebarProps {
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const location = useLocation();
   const { user } = useUser();
+  const { logout } = useUser();
 
   // Filter nav items based on role
   const filteredNav = navigation.filter((item) =>
     item.roles.includes(user?.role || "")
   );
+
 
   return (
     <>
@@ -92,7 +94,8 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border flex flex-col gap-4">
+          {/* User Info */}
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center">
               {user?.role === "admin" ? (
@@ -105,9 +108,24 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground">{user?.role}</p>
-              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+              <span className="text-sm font-medium text-foreground">
+                {user?.email || 'User'}
+              </span>
             </div>
           </div>
+          {/* Logout Button */}
+          <button
+            onClick={() => {
+              logout();
+              window.location.href = '/login';
+            }}
+            className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
+            </svg>
+            Logout
+          </button>
         </div>
       </div>
     </>

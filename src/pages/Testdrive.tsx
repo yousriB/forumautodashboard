@@ -1,8 +1,9 @@
-import { useState , useEffect } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useUser } from "@/context/UserContext";
 import {
   Table,
   TableBody,
@@ -63,13 +64,32 @@ export default function Testdrive() {
   const [selectedRequest, setSelectedRequest] = useState<TestDriveRequest | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useUser();
 
   const filteredRequests = testDrives.filter((request) => {
-    const matchesSearch = request.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.car_model.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || request.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    if (!request) return false;
+    
+    // Clean the status by trimming any whitespace
+    const cleanStatus = request.status.trim();
+    
+    // If search term is provided, check if it matches any field
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        (request.full_name?.toLowerCase().includes(searchLower) ||
+         request.email?.toLowerCase().includes(searchLower) ||
+         request.car_model?.toLowerCase().includes(searchLower) ||
+         request.phone?.includes(searchTerm)) ?? false;
+      
+      if (!matchesSearch) return false;
+    }
+    
+    // Apply status filter if not 'all'
+    if (statusFilter !== "all" && cleanStatus !== statusFilter) {
+      return false;
+    }
+    
+    return true;
   });
 
   const updateStatus = async (requestId: string, newStatus: 'pending' | 'confirmed' | 'completed' | 'cancelled') => {
@@ -116,14 +136,31 @@ export default function Testdrive() {
       setIsLoading(true);
       setError(null);
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('test_drive_requests')
           .select('*')
           .order('created_at', { ascending: false });
 
+        const { data, error } = await query;
+
         if (error) throw error;
 
-        setTestDrives(data);
+        // Clean up the data (trim status values)
+        const cleanedData = data.map(request => ({
+          ...request,
+          status: request.status.trim() as 'pending' | 'confirmed' | 'completed' | 'cancelled'
+        }));
+
+        // Filter by brand if user is a salesperson
+        let filteredData = cleanedData;
+        if (user?.role === 'sales' && user?.brand) {
+          const brand = user.brand.toLowerCase();
+          filteredData = cleanedData.filter(request => 
+            request.car_model && request.car_model.toLowerCase().includes(brand)
+          );
+        }
+
+        setTestDrives(filteredData);
       } catch (error) {
         console.error('Error fetching test drives:', error);
         setError('Failed to load test drives. Please try again later.');
@@ -133,7 +170,7 @@ export default function Testdrive() {
     };
 
     fetchTestDrives();
-  }, []);
+  }, [user]); // Add user as dependency to refetch when user changes
 
   const counts = getStatusCounts();
 

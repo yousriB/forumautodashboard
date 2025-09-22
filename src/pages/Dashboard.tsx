@@ -99,6 +99,15 @@ export default function Dashboard() {
     );
   }
 
+  // Ensure chart data is always an array
+  const completedSalesData = Array.isArray(data.completed_sales_per_brand) 
+    ? data.completed_sales_per_brand 
+    : [];
+  
+  const pendingSalesData = Array.isArray(data.pending_sales_per_brand) 
+    ? data.pending_sales_per_brand 
+    : [];
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -148,7 +157,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data.completed_sales_per_brand}>
+                <BarChart data={completedSalesData}>
                   <CartesianGrid
                     strokeDasharray="3 3"
                     className="stroke-border"
@@ -185,7 +194,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data.pending_sales_per_brand}>
+                <BarChart data={pendingSalesData}>
                   <CartesianGrid
                     strokeDasharray="3 3"
                     className="stroke-border"

@@ -29,6 +29,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Search, Filter, Eye, FileText, Car, User, DollarSign, Mail, Phone, MapPin , CheckCheck} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { useUser } from "@/context/UserContext";
 
 
 // Standard devis requests
@@ -88,6 +89,8 @@ export default function Devis() {
   const [standardDevisRequests, setStandardDevisRequests] = useState<DevisRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useUser();
+
 
   const filterRequests = (requests: any[]) => {
     return requests.filter((request) => {
@@ -164,14 +167,21 @@ export default function Devis() {
   const fetchCustomDevisRequests = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('custom_devis_requests')
         .select('*')
         .order('created_at', { ascending: false });
 
+      // If user is a sales rep, only fetch requests for their brand
+      if (user?.role === 'sales' && user?.brand) {
+        query = query.eq('car_brand', user.brand);
+      }
+
+      const { data, error } = await query;
+
       if (error) {
-        console.error('Error fetching appointments:', error);
-        setError('Failed to load appointments');
+        console.error('Error fetching custom devis requests:', error);
+        setError('Failed to load custom devis requests');
       } else {
         setCustomDevisRequests(data || []);
       }
@@ -186,14 +196,21 @@ export default function Devis() {
   const fetchStandardDevisRequests = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('devis_requests')
         .select('*')
         .order('created_at', { ascending: false });
 
+      // If user is a sales rep, only fetch requests for their brand
+      if (user?.role === 'sales' && user?.brand) {
+        query = query.eq('car_brand', user.brand);
+      }
+
+      const { data, error } = await query;
+
       if (error) {
-        console.error('Error fetching appointments:', error);
-        setError('Failed to load appointments');
+        console.error('Error fetching standard devis requests:', error);
+        setError('Failed to load standard devis requests');
       } else {
         setStandardDevisRequests(data || []);
       }
@@ -206,10 +223,12 @@ export default function Devis() {
   };
 
   useEffect(() => {
-    fetchCustomDevisRequests();
-    fetchStandardDevisRequests();
-  }, []);
-
+    // Only fetch data if user is loaded
+    if (user) {
+      fetchStandardDevisRequests();
+      fetchCustomDevisRequests();
+    }
+  }, [user]); // Add user as a dependency
 
   const filteredDevis = filterRequests(standardDevisRequests);
   const filteredCustomDevis = filterRequests(customDevisRequests);
