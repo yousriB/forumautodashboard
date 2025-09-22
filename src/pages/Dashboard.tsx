@@ -1,12 +1,14 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import {
   DollarSign,
   Calendar,
   MessageCircle,
-  TrendingUp,
-  Car,
   Users,
+  FileText,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -22,40 +24,89 @@ import {
   Pie,
   Cell,
 } from "@/components/ui/chart";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { supabase } from "@/lib/supabaseClient";
+import { Button } from "@/components/ui/button";
+import { NavLink } from "react-router-dom";
 
-// Sample data for charts
-const salesData = [
-  { month: "Jan", sales: 45 },
-  { month: "Feb", sales: 52 },
-  { month: "Mar", sales: 38 },
-  { month: "Apr", sales: 61 },
-  { month: "May", sales: 55 },
-  { month: "Jun", sales: 67 },
-];
-
-const revenueData = [
-  { month: "Jan", revenue: 45000 },
-  { month: "Feb", revenue: 52000 },
-  { month: "Mar", revenue: 38000 },
-  { month: "Apr", revenue: 61000 },
-  { month: "May", revenue: 55000 },
-  { month: "Jun", revenue: 67000 },
-];
-
-const appointmentData = [
-  { name: "Pending", value: 35, color: "#f59e0b" },
-  { name: "Completed", value: 45, color: "#10b981" },
-  { name: "Cancelled", value: 20, color: "#ef4444" },
-];
+type DashboardData = {
+  total_contacts: number;
+  total_appointments: number;
+  total_test_drives: number;
+  total_sales: number;
+  pending_sales: number;
+  completed_sales_per_brand: { car_brand: string; total_sales: number }[];
+  pending_sales_per_brand: { car_brand: string; total_sales: number }[];
+};
 
 export default function Dashboard() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [appointments , setAppointments] = useState<any[]>([]);
+  const quickActions = [
+    { name: "Manage Appointments", href: "/appointments", icon: Calendar },
+    { name: "Manage Devis", href: "/devis", icon: FileText },
+    { name: "Manage Messages", href: "/messages", icon: MessageCircle },
+    { name: "Manage Users", href: "/users", icon: Users },
+  ];
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.rpc("get_admin_dashboard_data");
+      if (error) {
+        console.error("Error fetching dashboard data:", error.message);
+      } else {
+        setData(data as DashboardData);
+      }
+      setLoading(false);
+    };
+
+    const fetchAppointments = async () => {
+      const { data, error } = await supabase.from("appointment_requests").select("*");
+      if (error) {
+        console.error("Error fetching appointments:", error.message);
+      } else {
+        setAppointments(data);
+        //console the appointment where status is completed 
+        console.log(data.filter((appointment) => appointment.status === "completed").length);
+      }
+    };
+
+    fetchDashboardData();
+    fetchAppointments();
+  }, []);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="p-6">Loading dashboard...</div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!data) {
+    return (
+      <DashboardLayout>
+        <div className="p-6 text-red-500">Failed to load dashboard data.</div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Page Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            Dashboard
+          </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-2">
             Welcome back! Here's what's happening with your dealership today.
           </p>
@@ -64,77 +115,48 @@ export default function Dashboard() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           <StatsCard
-            title="Total Sales"
-            value="156"
-            change="+12% from last month"
-            changeType="positive"
+            title="Completed Sales"
+            value={data.total_sales.toString()}
             icon={DollarSign}
           />
           <StatsCard
             title="Appointments"
-            value="89"
-            change="+5% from last week"
-            changeType="positive"
+            value={data.total_appointments.toString()}
             icon={Calendar}
           />
           <StatsCard
             title="Messages"
-            value="34"
-            change="3 unread"
-            changeType="neutral"
+            value={data.total_contacts.toString()}
             icon={MessageCircle}
           />
           <StatsCard
-            title="Revenue"
-            value="$324K"
-            change="+18% from last month"
-            changeType="positive"
-            icon={TrendingUp}
+            title="Test Drive"
+            value={data.total_test_drives.toString()}
+            icon={Calendar}
           />
         </div>
 
         {/* Charts Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
-          {/* Sales Chart */}
+          {/* Completed Sales per Brand */}
           <Card className="dashboard-card">
             <CardHeader>
-              <CardTitle>Monthly Sales</CardTitle>
+              <CardTitle>Completed Sales per Brand</CardTitle>
               <CardDescription>
-                Number of cars sold over the last 6 months
+                Sales distribution by car brand
               </CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={salesData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="month" className="text-muted-foreground" />
-                  <YAxis className="text-muted-foreground" />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
+                <BarChart data={data.completed_sales_per_brand}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-border"
                   />
-                  <Bar dataKey="sales" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Revenue Chart */}
-          <Card className="dashboard-card">
-            <CardHeader>
-              <CardTitle>Revenue Trend</CardTitle>
-              <CardDescription>
-                Monthly revenue performance
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="month" className="text-muted-foreground" />
+                  <XAxis
+                    dataKey="car_brand"
+                    className="text-muted-foreground"
+                  />
                   <YAxis className="text-muted-foreground" />
                   <Tooltip
                     contentStyle={{
@@ -142,16 +164,51 @@ export default function Dashboard() {
                       border: "1px solid hsl(var(--border))",
                       borderRadius: "8px",
                     }}
-                    formatter={(value) => [`$${value.toLocaleString()}`, "Revenue"]}
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="hsl(var(--accent))" 
-                    strokeWidth={3}
-                    dot={{ fill: "hsl(var(--accent))", strokeWidth: 2 }}
+                  <Bar
+                    dataKey="total_sales"
+                    fill="hsl(var(--primary))"
+                    radius={[4, 4, 0, 0]}
                   />
-                </LineChart>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Pending Sales per Brand */}
+          <Card className="dashboard-card">
+            <CardHeader>
+              <CardTitle>Pending Sales per Brand</CardTitle>
+              <CardDescription>
+                Pending sales distribution by car brand
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={data.pending_sales_per_brand}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-border"
+                  />
+                  <XAxis
+                    dataKey="car_brand"
+                    className="text-muted-foreground"
+                  />
+                  <YAxis className="text-muted-foreground" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                    formatter={(value) => [`${value}`, "Pending Sales"]}
+                  />
+                  <Bar
+                    dataKey="total_sales"
+                    fill="#F59E0B"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -162,25 +219,29 @@ export default function Dashboard() {
           {/* Appointment Status */}
           <Card className="dashboard-card">
             <CardHeader>
-              <CardTitle>Appointment Status</CardTitle>
-              <CardDescription>
-                Current appointment distribution
-              </CardDescription>
+              <CardTitle>Appointments Overview</CardTitle>
+              {/* <CardDescription>
+                Completed vs Pending appointments
+              </CardDescription> */}
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie
-                    data={appointmentData}
+                    data={[
+                      { name: "Pending Appointments", value: appointments.filter((appointment) => appointment.status === "pending").length, color: "#f59e0b" },
+                      { name: "Completed Appointments", value: appointments.filter((appointment) => appointment.status === "completed").length, color: "#10b981" },
+                      { name: "Confirmed Appointments", value: appointments.filter((appointment) => appointment.status === "confirmed").length, color: "#2481F9" },
+                    ]}
                     cx="50%"
                     cy="50%"
                     outerRadius={80}
                     dataKey="value"
                     label
                   >
-                    {appointmentData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
+                    <Cell fill="#f59e0b" />
+                    <Cell fill="#10b981" />
+                    <Cell fill="#2481F9" />
                   </Pie>
                   <Tooltip />
                 </PieChart>
@@ -188,56 +249,23 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Recent Activity */}
+          {/* Quick Actions */}
           <Card className="dashboard-card lg:col-span-2">
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>
-                Latest actions in your dealership
-              </CardDescription>
+              <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[
-                  {
-                    icon: Car,
-                    title: "New sale recorded",
-                    description: "BMW X5 sold to John Smith",
-                    time: "2 hours ago",
-                    color: "text-success",
-                  },
-                  {
-                    icon: Calendar,
-                    title: "Appointment scheduled",
-                    description: "Test drive for Mercedes C-Class",
-                    time: "4 hours ago",
-                    color: "text-primary",
-                  },
-                  {
-                    icon: MessageCircle,
-                    title: "New message received",
-                    description: "Inquiry about Audi A4 pricing",
-                    time: "6 hours ago",
-                    color: "text-accent",
-                  },
-                  {
-                    icon: Users,
-                    title: "New user registered",
-                    description: "Sales agent Sarah Johnson added",
-                    time: "1 day ago",
-                    color: "text-muted-foreground",
-                  },
-                ].map((activity, index) => (
-                  <div key={index} className="flex items-start gap-4 p-3 rounded-lg hover:bg-secondary-hover transition-colors">
-                    <div className={`p-2 rounded-lg bg-secondary ${activity.color}`}>
-                      <activity.icon className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground">{activity.title}</p>
-                      <p className="text-sm text-muted-foreground">{activity.description}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{activity.time}</span>
-                  </div>
+            <CardContent className="h-auto">
+              <div className="grid md:grid-cols-2 gap-4 h-auto">
+                {quickActions.map((action)=>(
+                   <NavLink
+                      key={action.name}
+                      to={action.href}
+                      className="flex gap-2 justify-center items-center border border-gray-300 shadow-sm hover:bg-[#2481F9] hover:text-white rounded-md  h-20 duration-300 transition-all"
+                  >
+                    <span className="font-medium">{action.name}</span>
+                    <action.icon className="h-5 w-5" />
+
+                  </NavLink>
                 ))}
               </div>
             </CardContent>
