@@ -1,16 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -26,10 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Filter, Eye, Edit, Calendar, Plus, Car, Phone, Mail } from "lucide-react";
+import { Calendar as DayCalendar } from "@/components/ui/calendar";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { Search, Filter, Eye, Edit, Calendar as CalendarIcon, Clock, MapPin, Car, Phone, Mail } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
-// Based on appointment_requests schema
 interface AppointmentRequest {
   id: string;
   name: string;
@@ -48,15 +48,13 @@ interface AppointmentRequest {
 }
 
 const statusColors = {
-  pending: "bg-warning text-warning-foreground",
-  confirmed: "bg-primary text-primary-foreground",
-  completed: "bg-success text-success-foreground", 
-  cancelled: "bg-destructive text-destructive-foreground",
+  pending: "bg-warning/10 text-warning",
+  confirmed: "bg-primary/10 text-primary",
+  completed: "bg-success/10 text-success",
+  cancelled: "bg-destructive/10 text-destructive",
 };
 
 export default function Appointments() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<AppointmentRequest[]>([]);
@@ -64,16 +62,52 @@ export default function Appointments() {
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
   const [rescheduleData, setRescheduleData] = useState<{ date: string; time: string }>({ date: '', time: '' });
   const [appointmentToReschedule, setAppointmentToReschedule] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAppointmentDetailsDialogOpen, setIsAppointmentDetailsDialogOpen] = useState(false);
 
-  const filteredAppointments = appointments.filter((appointment) => {
-    const matchesSearch = appointment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (appointment.car_brand && appointment.car_brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         (appointment.car_model && appointment.car_model.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus = statusFilter === "all" || appointment.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('appointment_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching appointments:', error);
+        setError('Failed to load appointments');
+      } else {
+        setAppointments(data || []);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAppointments();
+
+    const channel = supabase
+      .channel('appointment_requests')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointment_requests' },
+        (payload) => {
+          console.log('Change received!', payload);
+          fetchAppointments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const updateAppointmentStatus = async (appointmentId: string, newStatus: 'pending' | 'confirmed' | 'completed' | 'cancelled') => {
     try {
@@ -88,7 +122,7 @@ export default function Appointments() {
         setError('Failed to update appointment status');
       } else {
         await fetchAppointments();
-        setIsDialogOpen(false); // Close the dialog after successful update
+        setIsAppointmentDetailsDialogOpen(false);
       }
     } catch (err) {
       console.error('Error:', err);
@@ -96,336 +130,302 @@ export default function Appointments() {
     } finally {
       setLoading(false);
     }
-    
   };
 
-    // Initial fetch
-    useEffect(() => {
-      fetchAppointments();
-  
-      // Optional: Real-time updates
-      const channel = supabase
-        .channel('appointment_requests')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'appointment_requests' },
-          (payload) => {
-            console.log('Change received!', payload);
-            fetchAppointments(); // Refetch on any change
-          }
-        )
-        .subscribe();
-  
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }, []);
+  const rescheduleAppointment = (appointmentId: string) => {
+    const current = appointments.find(a => a.id === appointmentId);
+    setRescheduleData({
+      date: current?.appointment_date || '',
+      time: current?.appointment_time || '',
+    });
+    setAppointmentToReschedule(appointmentId);
+    setIsRescheduleModalOpen(true);
+  };
 
-    const fetchAppointments = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('appointment_requests')
-          .select('*')
-          .order('created_at', { ascending: false });
+  const handleSaveReschedule = async () => {
+    if (!appointmentToReschedule || !rescheduleData.date || !rescheduleData.time) {
+      alert('Please select both date and time.');
+      return;
+    }
 
-        if (error) {
-          console.error('Error fetching appointments:', error);
-          setError('Failed to load appointments');
-        } else {
-          setAppointments(data || []);
-        }
-      } catch (err) {
-        console.error('Error:', err);
-        setError('An unexpected error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
-    const rescheduleAppointment = (appointmentId: string) => {
-      // Get current appointment to pre-fill if needed
-      const current = appointments.find(a => a.id === appointmentId);
-      setRescheduleData({
-        date: current?.appointment_date || '',
-        time: current?.appointment_time || '',
-      });
-      setAppointmentToReschedule(appointmentId);
-      setIsRescheduleModalOpen(true);
-    };
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('appointment_requests')
+        .update({
+          appointment_date: rescheduleData.date,
+          appointment_time: rescheduleData.time,
+          status: 'confirmed',
+        })
+        .eq('id', appointmentToReschedule);
 
-    const handleSaveReschedule = async () => {
-      if (!appointmentToReschedule || !rescheduleData.date || !rescheduleData.time) {
-        alert('Please select both date and time.');
-        return;
+      if (error) {
+        console.error('Error rescheduling appointment:', error);
+        setError('Failed to reschedule appointment');
+      } else {
+        fetchAppointments();
+        setIsRescheduleModalOpen(false);
+        setIsAppointmentDetailsDialogOpen(false);
+        setRescheduleData({ date: '', time: '' });
+        setAppointmentToReschedule(null);
       }
-    
-      try {
-        setLoading(true);
-        const { error } = await supabase
-          .from('appointment_requests')
-          .update({
-            appointment_date: rescheduleData.date,
-            appointment_time: rescheduleData.time,
-          })
-          .eq('id', appointmentToReschedule);
-    
-        if (error) {
-          console.error('Error rescheduling appointment:', error);
-          setError('Failed to reschedule appointment');
-        } else {
-          fetchAppointments(); // Refresh list
-          setIsRescheduleModalOpen(false); // Close modal
-          setRescheduleData({ date: '', time: '' });
-          setAppointmentToReschedule(null);
-        }
-      } catch (err) {
-        console.error('Unexpected error:', err);
-        setError('An unexpected error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const ymd = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const hasAppointmentOn = (d: Date) => appointments.some((e) => e.appointment_date === ymd(d));
+
+  const appointmentsForSelectedDate = useMemo(() => {
+    if (!selectedDate) return [] as AppointmentRequest[];
+    const key = ymd(selectedDate);
+    return appointments.filter((e) => e.appointment_date === key);
+  }, [appointments, selectedDate]);
+
+  const handleDayClick = (date?: Date) => {
+    if (!date) return;
+    setSelectedDate(date);
+    setIsSheetOpen(true);
+  };
+
+  const formattedSelectedDate = selectedDate
+    ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(
+        selectedDate.getDate()
+      ).padStart(2, "0")}`
+    : "";
+
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 gap-4">
-          <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Appointment Requests</h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-2">Manage customer appointments and schedule new visits</p>
+      <div className="space-y-6 p-4 md:p-6 lg:p-8">
+        {/* Header */}
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Appointment Requests</h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">Manage customer appointments and schedule new visits</p>
           </div>
-         
-        </div>
+        </header>
 
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search by customer or car details..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 input-field" />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-48">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Calendar - Full Width */}
+        <Card className="p-2 sm:p-4 shadow-card border-border w-full">
+          <DayCalendar
+            mode="single"
+            selected={selectedDate}
+            onDayClick={handleDayClick}
+            showOutsideDays
+            className="w-full p-0 sm:p-3 pointer-events-auto"
+            classNames={{
+              months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
+              month: "space-y-4 flex-1",
+              caption: "flex justify-center pt-1 relative items-center",
+              caption_label: "text-lg font-medium",
+              nav: "space-x-1 flex items-center",
+              nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+              nav_button_previous: "absolute left-1",
+              nav_button_next: "absolute right-1",
+              table: "w-full border-collapse",
+              head_row: "flex w-full justify-around",
+              head_cell: "text-muted-foreground rounded-md w-full sm:w-24 font-medium text-sm p-2",
+              row: "flex w-full mt-2 sm:mt-3 justify-around gap-1 sm:gap-3",
+              cell:
+                "relative p-0 flex-1 h-16 sm:h-28 rounded-xl border border-border bg-primary/5 [&:has([aria-selected])]:ring-1 [&:has([aria-selected])]:ring-primary flex items-center justify-center text-center",
+              day: "h-full w-full rounded-xl font-normal p-2 text-right text-base sm:text-lg",
+              day_range_end: "day-range-end",
+              day_selected:
+                "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+              day_today: "bg-accent text-accent-foreground",
+              day_outside: "text-muted-foreground opacity-40",
+              day_disabled: "text-muted-foreground opacity-50",
+              day_range_middle:
+                "aria-selected:bg-accent aria-selected:text-accent-foreground",
+              day_hidden: "invisible",
+            }}
+            modifiers={{ hasEvent: hasAppointmentOn }}
+            modifiersClassNames={{
+              hasEvent:
+                "relative after:content-[''] after:absolute after:bottom-1 after:left-1 after:w-2 after:h-2 after:rounded-full after:bg-primary",
+            }}
+          />
+        </Card>
 
-        <div className="dashboard-card">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead className="hidden md:table-cell">Vehicle</TableHead>
-                  <TableHead className="hidden lg:table-cell">Services</TableHead>
-                  <TableHead className="hidden sm:table-cell">Appointment</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAppointments.map((appointment) => (
-                  <TableRow key={appointment.id} className="table-row-hover">
-                    <TableCell>
-                      <div>
-                        <div className="font-medium text-foreground">{appointment.name}</div>
-                        <div className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Mail className="h-3 w-3" />
-                          <span className="truncate">{appointment.email}</span>
-                        </div>
-                        {appointment.phone && (
-                          <div className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Phone className="h-3 w-3" />{appointment.phone}
-                          </div>
-                        )}
-                        {/* Mobile-only info */}
-                        <div className="md:hidden mt-2 space-y-1">
-                          {appointment.car_brand && appointment.car_model && (
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Car className="h-3 w-3" />
-                              {appointment.car_brand} {appointment.car_model}
-                            </div>
-                          )}
-                          {appointment.service_types && (
-                            <div className="flex flex-wrap gap-1">
-                              {appointment.service_types.slice(0, 2).map((service, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">{service}</Badge>
-                              ))}
-                            </div>
-                          )}
+        {/* Side sheet with appointments for selected day */}
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <SheetContent side="left" className="w-full sm:w-[420px] max-w-full">
+            <SheetHeader>
+              <SheetTitle className="text-xl md:text-2xl">
+                Appointments on {formattedSelectedDate && <span className="text-muted-foreground block text-lg sm:inline">({formattedSelectedDate})</span>}
+              </SheetTitle>
+              <SheetDescription className="text-sm md:text-base">List of appointments for this date.</SheetDescription>
+            </SheetHeader>
+
+            <div className="mt-4 space-y-3 max-h-[calc(100vh-160px)] overflow-y-auto pr-1">
+              {appointmentsForSelectedDate.length > 0 ? (
+                appointmentsForSelectedDate.map((appointment) => (
+                  <Card key={appointment.id} className="p-4 border border-border">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-foreground text-lg">{appointment.name}</h3>
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <CalendarIcon className="h-4 w-4" />
+                            {appointment.appointment_date}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            {appointment.appointment_time}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <Car className="h-4 w-4" />
+                            {appointment.car_brand} {appointment.car_model}
+                          </span>
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {appointment.car_brand && appointment.car_model ? (
-                        <div className="flex items-center gap-2">
-                          <Car className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <div className="font-medium">{appointment.car_brand} {appointment.car_model}</div>
-                            <div className="text-sm text-muted-foreground">{appointment.car_year}</div>
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">No vehicle specified</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      <div className="flex flex-wrap gap-1">
-                        {appointment.service_types?.map((service, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">{service}</Badge>
-                        )) || <span className="text-muted-foreground">No services</span>}
+                      <div className="flex flex-col items-start sm:items-end gap-2 min-w-max">
+                        <Badge className={`${statusColors[appointment.status]} text-sm`}>{appointment.status}</Badge>
                       </div>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      {appointment.appointment_date && appointment.appointment_time ? (
-                        <div>
-                          <div className="font-medium text-foreground flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(appointment.appointment_date).toLocaleDateString()}
-                          </div>
-                          <div className="text-sm text-muted-foreground">{appointment.appointment_time}</div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">Not scheduled</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={statusColors[appointment.status]}>{appointment.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button variant="ghost" size="sm" onClick={() => {
-                              setSelectedAppointment(appointment);
-                              setIsDialogOpen(true);
-                            }}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl  overflow-y-auto  ">
-                            <DialogHeader>
-                              <DialogTitle>Appointment Details</DialogTitle>
-                              <DialogDescription>View and manage appointment request</DialogDescription>
-                            </DialogHeader>
-                            {selectedAppointment && (
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="space-y-3">
-                                    <h4 className="font-medium">Customer Information</h4>
-                                    <div className="space-y-2">
-                                      <div><label className="text-sm text-muted-foreground">Name</label><p className="font-medium">{selectedAppointment.name}</p></div>
-                                      <div><label className="text-sm text-muted-foreground">Email</label><p className="font-medium">{selectedAppointment.email}</p></div>
-                                      <div><label className="text-sm text-muted-foreground">Phone</label><p className="font-medium">{selectedAppointment.phone || 'Not provided'}</p></div>
-                                      <div><label className="text-sm text-muted-foreground">Message</label><p className="font-medium">{selectedAppointment.message || 'No message'}</p></div>
-                                      <div><label className="text-sm text-muted-foreground">Appointment Date</label><p className="font-medium">{selectedAppointment.appointment_date || 'Not provided'}</p></div>
-                                      <div><label className="text-sm text-muted-foreground">Appointment Time</label><p className="font-medium">{selectedAppointment.appointment_time || 'Not provided'}</p></div>
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <h4 className="font-medium">Vehicle Information</h4>
-                                    <div className="space-y-2">
-                                      <div><label className="text-sm text-muted-foreground">Vehicle</label><p className="font-medium">{selectedAppointment.car_brand} {selectedAppointment.car_model} {selectedAppointment.car_year}</p></div>
-                                      <div><label className="text-sm text-muted-foreground">Chassis</label><p className="font-medium">{selectedAppointment.car_chassis || 'Not provided'}</p></div>
-                                      <div><label className="text-sm text-muted-foreground">Services</label><p className="font-medium">{selectedAppointment.service_types?.join(', ') || 'None'}</p></div>
-                                    </div>
+                    </div>
+                    {appointment.message && (
+                      <p className="mt-3 text-sm text-foreground/80 bg-accent/50 p-3 rounded-md">{appointment.message}</p>
+                    )}
+                    <div className="mt-3 text-left sm:text-right">
+                      <Dialog open={isAppointmentDetailsDialogOpen && selectedAppointment?.id === appointment.id} onOpenChange={setIsAppointmentDetailsDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="mt-2" onClick={() => {
+                            setSelectedAppointment(appointment);
+                            setIsAppointmentDetailsDialogOpen(true);
+                          }}>
+                            <Eye className="h-4 w-4 mr-2" /> View Details
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-xs sm:max-w-md md:max-w-2xl overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle className="text-xl md:text-2xl">Appointment Details</DialogTitle>
+                            <DialogDescription className="text-sm md:text-base">View and manage appointment request</DialogDescription>
+                          </DialogHeader>
+                          {selectedAppointment && (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                  <h4 className="font-medium text-lg">Customer Information</h4>
+                                  <div className="space-y-2 text-sm">
+                                    <div><label className="text-muted-foreground">Name</label><p className="font-medium">{selectedAppointment.name}</p></div>
+                                    <div><label className="text-muted-foreground">Email</label><p className="font-medium">{selectedAppointment.email}</p></div>
+                                    <div><label className="text-muted-foreground">Phone</label><p className="font-medium">{selectedAppointment.phone || 'Not provided'}</p></div>
+                                    <div><label className="text-muted-foreground">Appointment Date</label><p className="font-medium">{selectedAppointment.appointment_date || 'Not provided'}</p></div>
+                                    <div><label className="text-muted-foreground">Appointment Time</label><p className="font-medium">{selectedAppointment.appointment_time || 'Not provided'}</p></div>
                                   </div>
                                 </div>
-                                {selectedAppointment.message && (
-                                  <div><label className="text-sm text-muted-foreground">Message</label><p className="p-3 bg-secondary rounded-lg">{selectedAppointment.message}</p></div>
-                                )}
-                                <div className="flex flex-wrap gap-2">
-                                  {selectedAppointment.status === 'pending' && (
-                                    <Button onClick={() => {
-                                      updateAppointmentStatus(selectedAppointment.id, 'confirmed');
-                                    }}>Confirm Appointment</Button>
-                                  )}
-                                  {(selectedAppointment.status === 'pending' || selectedAppointment.status === 'confirmed') && (
-                                    <Button variant="outline" onClick={() => rescheduleAppointment(selectedAppointment.id)}>Reschedule</Button>
-                                  )}
-                                  {selectedAppointment.status === 'confirmed' && (
-                                    <Button onClick={() => {
-                                      updateAppointmentStatus(selectedAppointment.id, 'completed');
-                                    }}>Mark as Completed</Button>
-                                  )}
-                                  <Button variant="outline" asChild>
-                                    <a href={`mailto:${selectedAppointment.email}?subject=Appointment Confirmation&body=Dear ${selectedAppointment.name},%0A%0AYour appointment has been confirmed.%0A%0ABest regards,%0AAutoDealer Team`}>
-                                      Send Email
-                                    </a>
-                                  </Button>
-                                  {(selectedAppointment.status === 'pending' || selectedAppointment.status === 'confirmed') && (
-                                    <Button variant="destructive" onClick={async () => {
-                                      if (confirm('Are you sure you want to cancel this appointment?')) {
-                                        await updateAppointmentStatus(selectedAppointment.id, 'cancelled');
-                                      }
-                                    }}>Cancel</Button>
-                                  )}
+                                <div className="space-y-3">
+                                  <h4 className="font-medium text-lg">Vehicle Information</h4>
+                                  <div className="space-y-2 text-sm">
+                                    <div><label className="text-muted-foreground">Vehicle</label><p className="font-medium">{selectedAppointment.car_brand} {selectedAppointment.car_model} {selectedAppointment.car_year}</p></div>
+                                    <div><label className="text-muted-foreground">Chassis</label><p className="font-medium">{selectedAppointment.car_chassis || 'Not provided'}</p></div>
+                                    <div><label className="text-muted-foreground">Services</label><p className="font-medium">{selectedAppointment.service_types?.join(', ') || 'None'}</p></div>
+                                  </div>
                                 </div>
                               </div>
-                            )}
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+                              {selectedAppointment.message && (
+                                <div><label className="text-sm text-muted-foreground">Message</label><p className="p-3 bg-secondary rounded-lg text-sm">{selectedAppointment.message}</p></div>
+                              )}
+                              <div className="flex flex-wrap gap-2 justify-end">
+                                {selectedAppointment.status === 'pending' && (
+                                  <Button className="w-full sm:w-auto" onClick={() => {
+                                    updateAppointmentStatus(selectedAppointment.id, 'confirmed');
+                                  }}>Confirm Appointment</Button>
+                                )}
+                                {(selectedAppointment.status === 'pending' || selectedAppointment.status === 'confirmed') && (
+                                  <Button variant="outline" className="w-full sm:w-auto" onClick={() => rescheduleAppointment(selectedAppointment.id)}>Reschedule</Button>
+                                )}
+                                {selectedAppointment.status === 'confirmed' && (
+                                  <Button className="w-full sm:w-auto" onClick={() => {
+                                    updateAppointmentStatus(selectedAppointment.id, 'completed');
+                                  }}>Mark as Completed</Button>
+                                )}
+                                <Button variant="outline" asChild className="w-full sm:w-auto">
+                                  <a href={`mailto:${selectedAppointment.email}?subject=Appointment Confirmation&body=Dear ${selectedAppointment.name},%0A%0AYour appointment has been confirmed.%0A%0ABest regards,%0AAutoDealer Team`}>
+                                    Send Email
+                                  </a>
+                                </Button>
+                                {(selectedAppointment.status === 'pending' || selectedAppointment.status === 'confirmed') && (
+                                  <Button variant="destructive" className="w-full sm:w-auto" onClick={async () => {
+                                    if (confirm('Are you sure you want to cancel this appointment?')) {
+                                      await updateAppointmentStatus(selectedAppointment.id, 'cancelled');
+                                    }
+                                  }}>Cancel</Button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </Card>
+                ))
+              ) : (
+                <Card className="p-8 text-center text-muted-foreground border border-dashed">
+                  No appointments on this day
+                </Card>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
+
       {/* Reschedule Appointment Modal */}
-<Dialog open={isRescheduleModalOpen} onOpenChange={setIsRescheduleModalOpen}>
-  <DialogContent className="sm:max-w-[425px]">
-    <DialogHeader>
-      <DialogTitle>Reschedule Appointment</DialogTitle>
-      <DialogDescription>
-        Choose a new date and time for this appointment.
-      </DialogDescription>
-    </DialogHeader>
-    <div className="grid gap-4 py-4">
-      <div className="grid grid-cols-4 items-center gap-4">
-        <label htmlFor="date" className="text-right text-sm font-medium">
-          Date
-        </label>
-        <Input
-          id="date"
-          type="date"
-          value={rescheduleData.date}
-          onChange={(e) => setRescheduleData(prev => ({ ...prev, date: e.target.value }))}
-          className="col-span-3"
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <label htmlFor="time" className="text-right text-sm font-medium">
-          Time
-        </label>
-        <Input
-          id="time"
-          type="time"
-          value={rescheduleData.time}
-          onChange={(e) => setRescheduleData(prev => ({ ...prev, time: e.target.value }))}
-          className="col-span-3"
-        />
-      </div>
-    </div>
-    <div className="flex justify-end gap-2">
-      <Button variant="outline" onClick={() => setIsRescheduleModalOpen(false)}>
-        Cancel
-      </Button>
-      <Button onClick={handleSaveReschedule} disabled={loading}>
-        {loading ? 'Saving...' : 'Save Changes'}
-      </Button>
-    </div>
-  </DialogContent>
-</Dialog>
+      <Dialog open={isRescheduleModalOpen} onOpenChange={setIsRescheduleModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl md:text-2xl">Reschedule Appointment</DialogTitle>
+            <DialogDescription className="text-sm md:text-base">
+              Choose a new date and time for this appointment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="date" className="text-right text-sm font-medium">
+                Date
+              </label>
+              <Input
+                id="date"
+                type="date"
+                value={rescheduleData.date}
+                onChange={(e) => setRescheduleData(prev => ({ ...prev, date: e.target.value }))}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="time" className="text-right text-sm font-medium">
+                Time
+              </label>
+              <Input
+                id="time"
+                type="time"
+                value={rescheduleData.time}
+                onChange={(e) => setRescheduleData(prev => ({ ...prev, time: e.target.value }))}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row justify-end gap-2 mt-4">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsRescheduleModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button className="w-full sm:w-auto" onClick={handleSaveReschedule} disabled={loading}>
+              {loading ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
