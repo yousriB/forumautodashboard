@@ -45,7 +45,7 @@ interface DevisRequest {
   phone_number: string;
   cin_or_nf: string;
   created_at: string;
-  status: 'pending' | 'processing' | 'completed' | 'rejected';
+  status: 'pending' | 'processing' | 'completed' | 'rejected' | 'sold';
   responded_by: string | null;
   responded_at: string | null;
 }
@@ -63,7 +63,7 @@ interface CustomDevisRequest {
   car_version: string;
   region: string;
   created_at: string;
-  status: 'pending' | 'processing' | 'completed' | 'rejected';
+  status: 'pending' | 'processing' | 'completed' | 'rejected' | 'sold';
   responded_by: string | null;
   responded_at: string | null;
 }
@@ -74,6 +74,7 @@ const statusColors = {
   processing: "bg-primary text-primary-foreground",
   completed: "bg-success text-success-foreground",
   rejected: "bg-destructive text-destructive-foreground",
+  sold: "bg-[#eab308] text-white",
 };
 
 export default function Devis() {
@@ -118,7 +119,7 @@ export default function Devis() {
   };
 
 
-  const updateDevisStatus = async (requestId: string, newStatus: 'pending' | 'processing' | 'completed' | 'rejected', type: 'standard' | 'custom') => {
+  const updateDevisStatus = async (requestId: string, newStatus: 'pending' | 'processing' | 'completed' | 'rejected' | 'sold', type: 'standard' | 'custom') => {
     try {
       setLoading(true);
       const tableName = type === 'standard' ? 'devis_requests' : 'custom_devis_requests';
@@ -340,6 +341,7 @@ export default function Devis() {
               <SelectItem value="processing">Processing</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="sold">Sold</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -422,7 +424,7 @@ export default function Devis() {
                             </Button>
                             <Select 
                               value={request.status} 
-                              onValueChange={(value: 'pending' | 'processing' | 'completed' | 'rejected') => 
+                              onValueChange={(value: 'pending' | 'processing' | 'completed' | 'rejected' | 'sold') => 
                                 updateDevisStatus(request.id, value, 'standard')
                               }
                               disabled={loading}
@@ -434,6 +436,7 @@ export default function Devis() {
                                 <SelectItem value="processing">Processing</SelectItem>
                                 <SelectItem value="completed">Completed</SelectItem>
                                 <SelectItem value="rejected">Rejected</SelectItem>
+                                <SelectItem value="sold">Sold</SelectItem>
                               </SelectContent>
                             </Select>
                            
@@ -514,7 +517,7 @@ export default function Devis() {
                             </Button>
                             <Select 
                               value={request.status} 
-                              onValueChange={(value: 'pending' | 'processing' | 'completed' | 'rejected') => 
+                              onValueChange={(value: 'pending' | 'processing' | 'completed' | 'rejected' | 'sold') => 
                                 updateDevisStatus(request.id, value, 'custom')
                               }
                               disabled={loading}
@@ -526,6 +529,7 @@ export default function Devis() {
                                 <SelectItem value="processing">Processing</SelectItem>
                                 <SelectItem value="completed">Completed</SelectItem>
                                 <SelectItem value="rejected">Rejected</SelectItem>
+                                <SelectItem value="sold">Sold</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>

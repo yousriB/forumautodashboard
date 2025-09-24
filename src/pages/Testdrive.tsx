@@ -59,7 +59,7 @@ const statusIcons = {
 
 export default function Testdrive() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [testDrives, setTestDrives] = useState<TestDriveRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<TestDriveRequest | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -273,6 +273,7 @@ export default function Testdrive() {
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
