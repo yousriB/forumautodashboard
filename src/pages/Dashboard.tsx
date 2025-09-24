@@ -99,14 +99,7 @@ export default function Dashboard() {
     );
   }
 
-  // Ensure chart data is always an array
-  const completedSalesData = Array.isArray(data.completed_sales_per_brand) 
-    ? data.completed_sales_per_brand 
-    : [];
-  
-  const pendingSalesData = Array.isArray(data.pending_sales_per_brand) 
-    ? data.pending_sales_per_brand 
-    : [];
+
 
   return (
     <DashboardLayout>
@@ -145,141 +138,7 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Charts Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
-          {/* Completed Sales per Brand */}
-          <Card className="dashboard-card">
-            <CardHeader>
-              <CardTitle>Completed Sales per Brand</CardTitle>
-              <CardDescription>
-                Sales distribution by car brand
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={completedSalesData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    className="stroke-border"
-                  />
-                  <XAxis
-                    dataKey="car_brand"
-                    className="text-muted-foreground"
-                  />
-                  <YAxis className="text-muted-foreground" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Bar
-                    dataKey="total_sales"
-                    fill="hsl(var(--primary))"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Pending Sales per Brand */}
-          <Card className="dashboard-card">
-            <CardHeader>
-              <CardTitle>Pending Sales per Brand</CardTitle>
-              <CardDescription>
-                Pending sales distribution by car brand
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={pendingSalesData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    className="stroke-border"
-                  />
-                  <XAxis
-                    dataKey="car_brand"
-                    className="text-muted-foreground"
-                  />
-                  <YAxis className="text-muted-foreground" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                    formatter={(value) => [`${value}`, "Pending Sales"]}
-                  />
-                  <Bar
-                    dataKey="total_sales"
-                    fill="#F59E0B"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Bottom Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Appointment Status */}
-          <Card className="dashboard-card">
-            <CardHeader>
-              <CardTitle>Appointments Overview</CardTitle>
-              {/* <CardDescription>
-                Completed vs Pending appointments
-              </CardDescription> */}
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={[
-                      { name: "Pending Appointments", value: appointments.filter((appointment) => appointment.status === "pending").length, color: "#f59e0b" },
-                      { name: "Completed Appointments", value: appointments.filter((appointment) => appointment.status === "completed").length, color: "#10b981" },
-                      { name: "Confirmed Appointments", value: appointments.filter((appointment) => appointment.status === "confirmed").length, color: "#2481F9" },
-                    ]}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    label
-                  >
-                    <Cell fill="#f59e0b" />
-                    <Cell fill="#10b981" />
-                    <Cell fill="#2481F9" />
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card className="dashboard-card lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="h-auto">
-              <div className="grid md:grid-cols-2 gap-4 h-auto">
-                {quickActions.map((action)=>(
-                   <NavLink
-                      key={action.name}
-                      to={action.href}
-                      className="flex gap-2 justify-center items-center border border-gray-300 shadow-sm hover:bg-[#2481F9] hover:text-white rounded-md  h-20 duration-300 transition-all"
-                  >
-                    <span className="font-medium">{action.name}</span>
-                    <action.icon className="h-5 w-5" />
-
-                  </NavLink>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+     
       </div>
     </DashboardLayout>
   );

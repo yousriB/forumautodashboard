@@ -90,7 +90,13 @@ export default function Devis() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useUser();
+  const [brandFilter, setBrandFilter] = useState("all");
 
+  const brands = [
+    "ISUZU", "CHEVROLET", "CHERY", "GREAT WALL", "HAVAL", "GAC",
+    "TOYOTA", "SUZUKI", "MG", "FORD", "DFSK", "DONGFENG",
+    "BYD", "RENAULT", "DACIA", "NISSAN"
+  ];
 
   const filterRequests = (requests: any[]) => {
     return requests.filter((request) => {
@@ -100,7 +106,8 @@ export default function Devis() {
                            request.car_brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            request.car_model.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === "all" || request.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesBrand = brandFilter === "all" || request.car_brand.toLowerCase() === brandFilter.toLowerCase();
+      return matchesSearch && matchesStatus && matchesBrand;
     });
   };
 
@@ -308,6 +315,20 @@ export default function Devis() {
               className="pl-9 input-field"
             />
           </div>
+          <Select value={brandFilter} onValueChange={setBrandFilter}>
+            <SelectTrigger className="w-full sm:w-48">
+              <Car className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Filter by brand" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Brands</SelectItem>
+              {brands.map((brand) => (
+                <SelectItem key={brand} value={brand}>
+                  {brand}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-48">
               <Filter className="h-4 w-4 mr-2" />
@@ -410,7 +431,6 @@ export default function Devis() {
                                 <SelectValue placeholder="Status" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="pending">Pending</SelectItem>
                                 <SelectItem value="processing">Processing</SelectItem>
                                 <SelectItem value="completed">Completed</SelectItem>
                                 <SelectItem value="rejected">Rejected</SelectItem>
@@ -503,7 +523,6 @@ export default function Devis() {
                                 <SelectValue placeholder="Status" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="pending">Pending</SelectItem>
                                 <SelectItem value="processing">Processing</SelectItem>
                                 <SelectItem value="completed">Completed</SelectItem>
                                 <SelectItem value="rejected">Rejected</SelectItem>
@@ -609,21 +628,6 @@ export default function Devis() {
                 </div>
                 
                 <div className="flex gap-2 pt-4">
-                  {selectedRequest.status === 'pending' && (
-                    <Button onClick={() => {
-                      updateDevisStatus(selectedRequest.id, 'processing', 'custom');
-                    }}>
-                      <CheckCheck className="h-4 w-4 mr-2" />
-                      processing
-                      
-                    </Button>
-                  )}
-                  {selectedRequest.status === 'processing' && (
-                    <Button onClick={() => updateDevisStatus(selectedRequest.id, 'completed', 'custom')}>
-                      <CheckCheck className="h-4 w-4 mr-2" />
-                      Completed
-                    </Button>
-                  )}
                   <Button variant="outline" asChild>
                     <a href={`mailto:${selectedRequest.email}?subject=Devis Request - ${selectedRequest.car_brand} ${selectedRequest.car_model}`}>
                       <Mail className="h-4 w-4 mr-2" />

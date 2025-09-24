@@ -62,8 +62,9 @@ export default function Appointments() {
   const [appointments, setAppointments] = useState<AppointmentRequest[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentRequest | null>(null);
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
-const [rescheduleData, setRescheduleData] = useState<{ date: string; time: string }>({ date: '', time: '' });
-const [appointmentToReschedule, setAppointmentToReschedule] = useState<string | null>(null);
+  const [rescheduleData, setRescheduleData] = useState<{ date: string; time: string }>({ date: '', time: '' });
+  const [appointmentToReschedule, setAppointmentToReschedule] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const filteredAppointments = appointments.filter((appointment) => {
     const matchesSearch = appointment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -86,7 +87,8 @@ const [appointmentToReschedule, setAppointmentToReschedule] = useState<string | 
         console.error('Error updating appointment status:', error);
         setError('Failed to update appointment status');
       } else {
-        fetchAppointments();
+        await fetchAppointments();
+        setIsDialogOpen(false); // Close the dialog after successful update
       }
     } catch (err) {
       console.error('Error:', err);
@@ -299,9 +301,12 @@ const [appointmentToReschedule, setAppointmentToReschedule] = useState<string | 
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Dialog>
+                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                           <DialogTrigger asChild>
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedAppointment(appointment)}>
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              setSelectedAppointment(appointment);
+                              setIsDialogOpen(true);
+                            }}>
                               <Edit className="h-4 w-4" />
                             </Button>
                           </DialogTrigger>
@@ -356,9 +361,9 @@ const [appointmentToReschedule, setAppointmentToReschedule] = useState<string | 
                                     </a>
                                   </Button>
                                   {(selectedAppointment.status === 'pending' || selectedAppointment.status === 'confirmed') && (
-                                    <Button variant="destructive" onClick={() => {
+                                    <Button variant="destructive" onClick={async () => {
                                       if (confirm('Are you sure you want to cancel this appointment?')) {
-                                        updateAppointmentStatus(selectedAppointment.id, 'cancelled');
+                                        await updateAppointmentStatus(selectedAppointment.id, 'cancelled');
                                       }
                                     }}>Cancel</Button>
                                   )}

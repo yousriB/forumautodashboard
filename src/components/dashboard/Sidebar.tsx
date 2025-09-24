@@ -21,6 +21,7 @@ const navigation = [
   { name: "Messages", href: "/messages", icon: MessageCircle, roles: ["admin", "support"] },
   { name: "Test Drive", href: "/testdrive", icon: CarFrontIcon, roles: ["admin", "sales"] },
   { name: "Users", href: "/users", icon: Users, roles: ["admin"] },
+  { name: "Newsletters", href: "/newsletters", icon: Users, roles: ["admin"] },
   { name: "Settings", href: "/settings", icon: Settings, roles: ["admin", "sales", "support"] },
 ];
 

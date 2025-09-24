@@ -13,6 +13,7 @@ import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import Messages from "./pages/Messages";
 import Devis from "./pages/Devis";
+import Newsletters from "./pages/Newsletters";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/settings" element={<Settings />} />
             <Route path="/testdrive" element={<Testdrive />} />
             <Route path="/devis" element={<Devis />} />
+            <Route path="/newsletters" element={<Newsletters />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
