@@ -243,8 +243,8 @@ export default function Devis() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 gap-4">
+      <div className="space-y-6 bg-orange-500">
+        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 gap-4 bg-black">
           <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Devis Requests</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-2">Manage customer quote requests and pricing inquiries</p>
