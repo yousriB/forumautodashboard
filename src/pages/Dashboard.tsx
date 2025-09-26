@@ -63,9 +63,9 @@ export default function Dashboard() {
 
   // State for Pie Chart Filters
   const [availableBrands, setAvailableBrands] = useState<string[]>([]);
-  const [selectedBrand, setSelectedBrand] = useState<string>('');
-  const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString()); // Current month default
-  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString()); // Current year default
+  const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [selectedYear, setSelectedYear] = useState<string>('all');
 
   // State for Pie Chart Data
   const [pieChartData, setPieChartData] = useState<PieChartRequestData | null>(null);
@@ -148,9 +148,9 @@ export default function Dashboard() {
 
       setPieChartLoading(true);
       const { data: rpcData, error: rpcError } = await supabase.rpc("get_requests_pie_chart_data", {
-        p_brand: selectedBrand,
-        p_month: parseInt(selectedMonth),
-        p_year: parseInt(selectedYear)
+        p_brand: selectedBrand === 'all' ? null : selectedBrand,
+        p_month: selectedMonth === 'all' ? null : parseInt(selectedMonth),
+        p_year: selectedYear === 'all' ? null : parseInt(selectedYear)
       });
 
       if (rpcError) {
@@ -252,6 +252,7 @@ export default function Dashboard() {
                     <SelectValue placeholder="Select Brand" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">All Brands</SelectItem>
                     {brands.map(brand => (
                       <SelectItem key={brand} value={brand}>{brand}</SelectItem>
                     ))}
@@ -270,6 +271,7 @@ export default function Dashboard() {
                     <SelectValue placeholder="Select Month" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">All Months</SelectItem>
                     {months.map(month => (
                       <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
                     ))}
@@ -288,6 +290,7 @@ export default function Dashboard() {
                     <SelectValue placeholder="Select Year" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
                     {years.map(year => (
                       <SelectItem key={year.value} value={year.value}>{year.label}</SelectItem>
                     ))}
