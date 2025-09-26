@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { UserProvider } from "./context/UserContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Appointments from "./pages/Appointments";
@@ -25,17 +26,23 @@ const App = () => (
       <BrowserRouter>
         <UserProvider>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            {/* Public routes */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/appointments" element={<Appointments />} />
-            <Route path="/messages" element={<Messages />} />
-            <Route path="/users" element={<Users />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/testdrive" element={<Testdrive />} />
-            <Route path="/devis" element={<Devis />} />
-            <Route path="/newsletters" element={<Newsletters />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            
+            {/* Protected routes - wrap with ProtectedRoute */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/appointments" element={<Appointments />} />
+              <Route path="/messages" element={<Messages />} />
+              <Route path="/users" element={<Users />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/testdrive" element={<Testdrive />} />
+              <Route path="/devis" element={<Devis />} />
+              <Route path="/newsletters" element={<Newsletters />} />
+            </Route>
+            
+            {/* 404 - Not Found */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </UserProvider>
