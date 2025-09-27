@@ -27,7 +27,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Search, Filter, Eye, FileText, Car, User, DollarSign, Mail, Phone, MapPin , CheckCheck} from "lucide-react";
+import { Search, Filter, Eye, FileText, Car, User, DollarSign, Mail, Phone, MapPin, CheckCheck, Trash } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/context/UserContext";
 
@@ -92,6 +102,8 @@ export default function Devis() {
   const [error, setError] = useState<string | null>(null);
   const { user } = useUser();
   const [brandFilter, setBrandFilter] = useState("all");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingRequest, setDeletingRequest] = useState<{id: string, type: 'standard' | 'custom'} | null>(null);
 
   const brands = [
     "ISUZU", "CHEVROLET", "CHERY", "GREAT WALL", "HAVAL", "GAC",
@@ -241,12 +253,45 @@ export default function Devis() {
   const filteredDevis = filterRequests(standardDevisRequests);
   const filteredCustomDevis = filterRequests(customDevisRequests);
 
+  const confirmDelete = (id: string, type: 'standard' | 'custom') => {
+    setDeletingRequest({ id, type });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingRequest) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from(deletingRequest.type === 'standard' ? 'devis_requests' : 'custom_devis_requests')
+        .delete()
+        .eq('id', deletingRequest.id);
+
+      if (error) throw error;
+
+      // Update the UI by removing the deleted request
+      if (deletingRequest.type === 'standard') {
+        setStandardDevisRequests(prev => prev.filter(req => req.id !== deletingRequest.id));
+      } else {
+        setCustomDevisRequests(prev => prev.filter(req => req.id !== deletingRequest.id));
+      }
+    } catch (error) {
+      console.error('Error deleting request:', error);
+      setError('Failed to delete the request. Please try again.');
+    } finally {
+      setLoading(false);
+      setDeleteDialogOpen(false);
+      setDeletingRequest(null);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Devis Requests</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Performa requests</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-2">Manage customer quote requests and pricing inquiries</p>
           </div>
         </div>
@@ -439,6 +484,20 @@ export default function Devis() {
                                 <SelectItem value="sold">Sold</SelectItem>
                               </SelectContent>
                             </Select>
+                            {/* delete button only for admin */}
+                            {user.role === 'admin' && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={(e) => {
+                                e.stopPropagation();
+                                confirmDelete(request.id, 'custom');
+                              }}
+                              disabled={loading}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          )}
                            
                           </div>
                         </TableCell>
@@ -532,6 +591,21 @@ export default function Devis() {
                                 <SelectItem value="sold">Sold</SelectItem>
                               </SelectContent>
                             </Select>
+
+                            {/* delete button */}
+                            {user.role === 'admin' && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                confirmDelete(request.id, 'custom');
+                              }}
+                              disabled={loading}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -652,6 +726,28 @@ export default function Devis() {
             )}
           </DialogContent>
         </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the request and all its data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={loading}
+            >
+              {loading ? 'Deleting...' : 'Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </DashboardLayout>
   );

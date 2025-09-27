@@ -1,29 +1,20 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react"; // Added useMemo
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import {
   DollarSign,
   Calendar,
   MessageCircle,
-  Users,
-  FileText,
 } from "lucide-react";
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
-  Legend // Added Legend for pie chart
+  Tooltip,
+  Legend,
 } from "@/components/ui/chart";
 import {
   Card,
@@ -33,19 +24,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
-import { Button } from "@/components/ui/button";
-import { NavLink } from "react-router-dom";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Assuming you have a Select component
-
-type DashboardData = {
-  total_contacts: number;
-  total_appointments: number;
-  total_test_drives: number;
-  total_sales: number;
-  pending_sales: number;
-  completed_sales_per_brand: { car_brand: string; total_sales: number }[];
-  pending_sales_per_brand: { car_brand: string; total_sales: number }[];
-};
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Type for the data returned by get_requests_pie_chart_data
 type PieChartRequestData = {
@@ -54,120 +39,128 @@ type PieChartRequestData = {
   total_requests: number;
 }[];
 
-const PIE_COLORS = ['#22c55e', '#f97316', '#0088FE', '#ef4444', '#eab308', '#000000']; // Colors for the pie chart segments
+// Type for the new RPC function
+type StatusTotals = {
+  processing: number;
+  completed: number;
+  pending: number;
+  sold: number;
+};
+
+const PIE_COLORS = [
+  "#22c55e",
+  "#f97316",
+  "#0088FE",
+  "#ef4444",
+  "#eab308",
+  "#000000",
+];
 
 export default function Dashboard() {
-  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [appointments, setAppointments] = useState<any[]>([]);
 
-  // State for Pie Chart Filters
-  const [availableBrands, setAvailableBrands] = useState<string[]>([]);
-  const [selectedBrand, setSelectedBrand] = useState<string>('all');
-  const [selectedMonth, setSelectedMonth] = useState<string>('all');
-  const [selectedYear, setSelectedYear] = useState<string>('all');
+  // StatsCards data
+  const [statusTotals, setStatusTotals] = useState<StatusTotals>({
+    processing: 0,
+    completed: 0,
+    pending: 0,
+    sold: 0,
+  });
 
-  // State for Pie Chart Data
-  const [pieChartData, setPieChartData] = useState<PieChartRequestData | null>(null);
+  // Pie Chart Filters
+  const [selectedBrand, setSelectedBrand] = useState<string>("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedYear, setSelectedYear] = useState<string>("all");
+
+  // Pie Chart Data
+  const [pieChartData, setPieChartData] = useState<PieChartRequestData | null>(
+    null
+  );
   const [pieChartTotalRequests, setPieChartTotalRequests] = useState<number>(0);
   const [pieChartLoading, setPieChartLoading] = useState(false);
 
   const brands = [
-    "ISUZU", "CHEVROLET", "CHERY", "GREAT WALL", "HAVAL", "GAC",
-    "TOYOTA", "SUZUKI", "MG", "FORD", "DFSK", "DONGFENG",
-    "BYD", "RENAULT", "DACIA", "NISSAN"
-  ];
-
-  const quickActions = [
-    { name: "Manage Appointments", href: "/appointments", icon: Calendar },
-    { name: "Manage Devis", href: "/devis", icon: FileText },
-    { name: "Manage Messages", href: "/messages", icon: MessageCircle },
-    { name: "Manage Users", href: "/users", icon: Users },
+    "ISUZU",
+    "CHEVROLET",
+    "CHERY",
+    "GREAT WALL",
+    "HAVAL",
+    "GAC",
+    "TOYOTA",
+    "SUZUKI",
+    "MG",
+    "FORD",
+    "DFSK",
+    "DONGFENG",
+    "BYD",
+    "RENAULT",
+    "DACIA",
+    "NISSAN",
   ];
 
   // Helper arrays for months and years
-  const months = useMemo(() => Array.from({ length: 12 }, (_, i) => ({
-    value: (i + 1).toString(),
-    label: new Date(0, i).toLocaleString('en-US', { month: 'long' })
-  })), []);
+  const months = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => ({
+        value: (i + 1).toString(),
+        label: new Date(0, i).toLocaleString("en-US", { month: "long" }),
+      })),
+    []
+  );
 
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
-    return Array.from({ length: 5 }, (_, i) => ({ // Current year + 4 future years
+    return Array.from({ length: 5 }, (_, i) => ({
       value: (currentYear + i).toString(),
-      label: (currentYear + i).toString()
+      label: (currentYear + i).toString(),
     }));
   }, []);
 
-  // Fetch initial dashboard data and appointments
+  // Fetch StatsCards data
   useEffect(() => {
-    const fetchDashboardAndAppointments = async () => {
+    const fetchStatusTotals = async () => {
       setLoading(true);
-      const { data: dashboardData, error: dashboardError } = await supabase.rpc("get_admin_dashboard_data");
-      if (dashboardError) {
-        console.error("Error fetching dashboard data:", dashboardError.message);
-      } else {
-        setData(dashboardData as DashboardData);
-        // Optionally extract brands from dashboardData if available, or fetch them
-        const completedBrands = Array.isArray(dashboardData.completed_sales_per_brand) 
-          ? dashboardData.completed_sales_per_brand.map((item: { car_brand: string }) => item.car_brand) 
-          : [];
-        const pendingBrands = Array.isArray(dashboardData.pending_sales_per_brand) 
-          ? dashboardData.pending_sales_per_brand.map((item: { car_brand: string }) => item.car_brand) 
-          : [];
-        
-        const brandsFromDashboard = [...completedBrands, ...pendingBrands];
-        const uniqueBrands = Array.from(new Set(brandsFromDashboard.filter((brand): brand is string => typeof brand === 'string')));
-        
-        setAvailableBrands(uniqueBrands);
-        if (uniqueBrands.length > 0 && !selectedBrand) {
-          setSelectedBrand(uniqueBrands[0]); // Set first available brand as default
-        }
-      }
-
-      const { data: appointmentData, error: appointmentError } = await supabase.from("appointment_requests").select("*");
-      if (appointmentError) {
-        console.error("Error fetching appointments:", appointmentError.message);
-      } else {
-        setAppointments(appointmentData);
+      const { data, error } = await supabase.rpc("get_requests_status_totals");
+      if (error) {
+        console.error("Error fetching status totals:", error.message);
+      } else if (data && data.length > 0) {
+        setStatusTotals(data[0]);
       }
       setLoading(false);
     };
 
-    fetchDashboardAndAppointments();
-  }, []); // Run once on component mount
+    fetchStatusTotals();
+  }, []);
 
-  // Fetch pie chart data whenever filters (brand, month, year) change
+  // Fetch pie chart data whenever filters change
   useEffect(() => {
     const fetchPieChartData = async () => {
-      if (!selectedBrand || !selectedMonth || !selectedYear) {
-        setPieChartData(null);
-        setPieChartTotalRequests(0);
-        return;
-      }
-
       setPieChartLoading(true);
-      const { data: rpcData, error: rpcError } = await supabase.rpc("get_requests_pie_chart_data", {
-        p_brand: selectedBrand === 'all' ? null : selectedBrand,
-        p_month: selectedMonth === 'all' ? null : parseInt(selectedMonth),
-        p_year: selectedYear === 'all' ? null : parseInt(selectedYear)
-      });
+      const { data, error } = await supabase.rpc(
+        "get_requests_pie_chart_data",
+        {
+          p_brand: selectedBrand === "all" ? null : selectedBrand,
+          p_month:
+            selectedMonth === "all" ? null : parseInt(selectedMonth, 10),
+          p_year: selectedYear === "all" ? null : parseInt(selectedYear, 10),
+        }
+      );
 
-      if (rpcError) {
-        console.error("Error fetching pie chart data:", rpcError.message);
+      if (error) {
+        console.error("Error fetching pie chart data:", error.message);
         setPieChartData(null);
         setPieChartTotalRequests(0);
       } else {
-        setPieChartData(rpcData as PieChartRequestData);
-        // Calculate total requests for display outside the pie chart
-        const total = rpcData && rpcData.length > 0 ? rpcData[0].total_requests : 0;
+        setPieChartData(data as PieChartRequestData);
+        const total =
+          data && data.length > 0 ? data[0].total_requests : 0;
         setPieChartTotalRequests(total);
       }
       setPieChartLoading(false);
     };
 
     fetchPieChartData();
-  }, [selectedBrand, selectedMonth, selectedYear]); // Re-run when filters change
+  }, [selectedBrand, selectedMonth, selectedYear]);
 
   if (loading) {
     return (
@@ -177,22 +170,17 @@ export default function Dashboard() {
     );
   }
 
-  if (!data) {
-    return (
-      <DashboardLayout>
-        <div className="p-6 text-red-500">Failed to load dashboard data.</div>
-      </DashboardLayout>
-    );
-  }
-
-  // Calculate percentages for pie chart if data exists
-  const processedPieChartData = pieChartData ? pieChartData.map((item, index) => ({
-    ...item,
-    // Calculate percentage if total_requests is not zero to avoid division by zero
-    percentage: item.total_requests > 0 ? (item.request_count / item.total_requests) * 100 : 0,
-    fill: PIE_COLORS[index % PIE_COLORS.length] // Assign a color
-  })) : [];
-
+  // Prepare pie chart data
+  const processedPieChartData = pieChartData
+    ? pieChartData.map((item, index) => ({
+        ...item,
+        percentage:
+          item.total_requests > 0
+            ? (item.request_count / item.total_requests) * 100
+            : 0,
+        fill: PIE_COLORS[index % PIE_COLORS.length],
+      }))
+    : [];
 
   return (
     <DashboardLayout>
@@ -211,28 +199,28 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           <StatsCard
             title="Completed Sales"
-            value={data.total_sales.toString()}
+            value={statusTotals.completed.toString()}
             icon={DollarSign}
           />
           <StatsCard
-            title="Appointments"
-            value={data.total_appointments.toString()}
+            title="Pending Sales"
+            value={statusTotals.pending.toString()}
             icon={Calendar}
           />
           <StatsCard
-            title="Messages"
-            value={data.total_contacts.toString()}
+            title="Processing Sales"
+            value={statusTotals.processing.toString()}
             icon={MessageCircle}
           />
           <StatsCard
-            title="Test Drive"
-            value={data.total_test_drives.toString()}
-            icon={Calendar}
+            title="Sold Cars"
+            value={statusTotals.sold.toString()}
+            icon={DollarSign}
           />
         </div>
 
         {/* Request Status Pie Chart */}
-        <Card>
+               <Card>
           <CardHeader>
             <CardTitle>Request Status Overview</CardTitle>
             <CardDescription>
@@ -241,8 +229,14 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4 mb-6 items-center">
+              {/* Brand Filter */}
               <div>
-                <label htmlFor="brand-select" className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                <label
+                  htmlFor="brand-select"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Brand
+                </label>
                 <Select
                   value={selectedBrand}
                   onValueChange={setSelectedBrand}
@@ -253,15 +247,23 @@ export default function Dashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Brands</SelectItem>
-                    {brands.map(brand => (
-                      <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                    {brands.map((brand) => (
+                      <SelectItem key={brand} value={brand}>
+                        {brand}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* Month Filter */}
               <div>
-                <label htmlFor="month-select" className="block text-sm font-medium text-gray-700 mb-1">Month</label>
+                <label
+                  htmlFor="month-select"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Month
+                </label>
                 <Select
                   value={selectedMonth}
                   onValueChange={setSelectedMonth}
@@ -272,15 +274,23 @@ export default function Dashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Months</SelectItem>
-                    {months.map(month => (
-                      <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* Year Filter */}
               <div>
-                <label htmlFor="year-select" className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                <label
+                  htmlFor="year-select"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Year
+                </label>
                 <Select
                   value={selectedYear}
                   onValueChange={setSelectedYear}
@@ -291,12 +301,15 @@ export default function Dashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Years</SelectItem>
-                    {years.map(year => (
-                      <SelectItem key={year.value} value={year.value}>{year.label}</SelectItem>
+                    {years.map((year) => (
+                      <SelectItem key={year.value} value={year.value}>
+                        {year.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
               {pieChartTotalRequests > 0 && (
                 <div className="ml-auto text-lg font-semibold">
                   Total Requests: {pieChartTotalRequests}
@@ -305,7 +318,9 @@ export default function Dashboard() {
             </div>
 
             {pieChartLoading ? (
-              <div className="flex justify-center items-center h-[300px]">Loading chart data...</div>
+              <div className="flex justify-center items-center h-[300px]">
+                Loading chart data...
+              </div>
             ) : processedPieChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
@@ -314,7 +329,15 @@ export default function Dashboard() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ status_category, percentage }: { status_category: string; percentage: number }) => `${status_category} (${percentage.toFixed(1)}%)`}
+                    label={({
+                      status_category,
+                      request_count,
+                    }: {
+                      status_category: string;
+                      request_count: number;
+                    }) =>
+                      `${status_category} (${request_count})`
+                    }
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="request_count"
@@ -323,7 +346,12 @@ export default function Dashboard() {
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number, name: string, props: any) => [`${value} requests`, props.payload.status_category]} />
+                  <Tooltip
+                    formatter={(value: number, name: string, props: any) => [
+                      `${value} requests`,
+                      props.payload.status_category,
+                    ]}
+                  />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>

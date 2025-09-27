@@ -83,7 +83,7 @@ export default function Login() {
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-primary mb-4">
             <Car className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">Tableau de bord AutoDealer</h1>
+          <h1 className="text-3xl font-bold text-foreground">Tableau de bord Forum</h1>
           <p className="text-muted-foreground mt-2">Connectez-vous à votre espace personnel</p>
         </div>
 
