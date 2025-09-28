@@ -12,13 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { Calendar as DayCalendar } from "@/components/ui/calendar";
 import {
   Sheet,
@@ -27,8 +21,20 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { Search, Filter, Eye, Edit, Calendar as CalendarIcon, Clock, MapPin, Car, Phone, Mail } from "lucide-react";
+import {
+  Eye,
+  Calendar as CalendarIcon,
+  Clock,
+  Car,
+  DollarSign,
+  Calendar,
+  MessageCircle,
+  CheckCircle,
+  XCircle,
+  
+} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 
 interface AppointmentRequest {
   id: string;
@@ -44,7 +50,7 @@ interface AppointmentRequest {
   appointment_date: string | null;
   appointment_time: string | null;
   created_at: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  status: "pending" | "confirmed" | "completed" | "cancelled";
 }
 
 const statusColors = {
@@ -58,11 +64,18 @@ export default function Appointments() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<AppointmentRequest[]>([]);
-  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentRequest | null>(null);
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<AppointmentRequest | null>(null);
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
-  const [rescheduleData, setRescheduleData] = useState<{ date: string; time: string }>({ date: '', time: '' });
-  const [appointmentToReschedule, setAppointmentToReschedule] = useState<string | null>(null);
-  const [isAppointmentDetailsDialogOpen, setIsAppointmentDetailsDialogOpen] = useState(false);
+  const [rescheduleData, setRescheduleData] = useState<{
+    date: string;
+    time: string;
+  }>({ date: "", time: "" });
+  const [appointmentToReschedule, setAppointmentToReschedule] = useState<
+    string | null
+  >(null);
+  const [isAppointmentDetailsDialogOpen, setIsAppointmentDetailsDialogOpen] =
+    useState(false);
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -71,19 +84,19 @@ export default function Appointments() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('appointment_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("appointment_requests")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) {
-        console.error('Error fetching appointments:', error);
-        setError('Failed to load appointments');
+        console.error("Error fetching appointments:", error);
+        setError("Failed to load appointments");
       } else {
         setAppointments(data || []);
       }
     } catch (err) {
-      console.error('Error:', err);
-      setError('An unexpected error occurred');
+      console.error("Error:", err);
+      setError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -93,12 +106,12 @@ export default function Appointments() {
     fetchAppointments();
 
     const channel = supabase
-      .channel('appointment_requests')
+      .channel("appointment_requests")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'appointment_requests' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "appointment_requests" },
         (payload) => {
-          console.log('Change received!', payload);
+          console.log("Change received!", payload);
           fetchAppointments();
         }
       )
@@ -109,69 +122,76 @@ export default function Appointments() {
     };
   }, []);
 
-  const updateAppointmentStatus = async (appointmentId: string, newStatus: 'pending' | 'confirmed' | 'completed' | 'cancelled') => {
+  const updateAppointmentStatus = async (
+    appointmentId: string,
+    newStatus: "pending" | "confirmed" | "completed" | "cancelled"
+  ) => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('appointment_requests')
+        .from("appointment_requests")
         .update({ status: newStatus })
-        .eq('id', appointmentId);
+        .eq("id", appointmentId);
 
       if (error) {
-        console.error('Error updating appointment status:', error);
-        setError('Failed to update appointment status');
+        console.error("Error updating appointment status:", error);
+        setError("Failed to update appointment status");
       } else {
         await fetchAppointments();
         setIsAppointmentDetailsDialogOpen(false);
       }
     } catch (err) {
-      console.error('Error:', err);
-      setError('An unexpected error occurred');
+      console.error("Error:", err);
+      setError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
 
   const rescheduleAppointment = (appointmentId: string) => {
-    const current = appointments.find(a => a.id === appointmentId);
+    const current = appointments.find((a) => a.id === appointmentId);
     setRescheduleData({
-      date: current?.appointment_date || '',
-      time: current?.appointment_time || '',
+      date: current?.appointment_date || "",
+      time: current?.appointment_time || "",
     });
     setAppointmentToReschedule(appointmentId);
     setIsRescheduleModalOpen(true);
   };
 
   const handleSaveReschedule = async () => {
-    if (!appointmentToReschedule || !rescheduleData.date || !rescheduleData.time) {
-      alert('Please select both date and time.');
+    if (
+      !appointmentToReschedule ||
+      !rescheduleData.date ||
+      !rescheduleData.time
+    ) {
+      alert("Please select both date and time.");
       return;
     }
 
     try {
       setLoading(true);
       const { error } = await supabase
-        .from('appointment_requests')
+        .from("appointment_requests")
         .update({
           appointment_date: rescheduleData.date,
           appointment_time: rescheduleData.time,
-          status: 'confirmed',
+          status: "confirmed",
         })
-        .eq('id', appointmentToReschedule);
+        .eq("id", appointmentToReschedule);
 
       if (error) {
-        console.error('Error rescheduling appointment:', error);
-        setError('Failed to reschedule appointment');
+        console.error("Error rescheduling appointment:", error);
+        setError("Failed to reschedule appointment");
       } else {
         fetchAppointments();
         setIsRescheduleModalOpen(false);
         setIsAppointmentDetailsDialogOpen(false);
-        setRescheduleData({ date: '', time: '' });
+        setRescheduleData({ date: "", time: "" });
         setAppointmentToReschedule(null);
       }
     } catch (err) {
-      console.error('Unexpected error:', err);
-      setError('An unexpected error occurred');
+      console.error("Unexpected error:", err);
+      setError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -184,7 +204,8 @@ export default function Appointments() {
     return `${y}-${m}-${day}`;
   };
 
-  const hasAppointmentOn = (d: Date) => appointments.some((e) => e.appointment_date === ymd(d));
+  const hasAppointmentOn = (d: Date) =>
+    appointments.some((e) => e.appointment_date === ymd(d));
 
   const appointmentsForSelectedDate = useMemo(() => {
     if (!selectedDate) return [] as AppointmentRequest[];
@@ -199,20 +220,46 @@ export default function Appointments() {
   };
 
   const formattedSelectedDate = selectedDate
-    ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(
-        selectedDate.getDate()
-      ).padStart(2, "0")}`
+    ? `${selectedDate.getFullYear()}-${String(
+        selectedDate.getMonth() + 1
+      ).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`
     : "";
-
 
   return (
     <DashboardLayout>
       <div className="space-y-6 p-4 md:p-6 lg:p-8">
         {/* Header */}
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <header className="flex flex-col items-start gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Appointment Requests</h1>
-            <p className="text-sm md:text-base text-muted-foreground mt-1">Manage customer appointments and schedule new visits</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+              Appointment Requests
+            </h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">
+              Manage customer appointments and schedule new visits
+            </p>
+          </div>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 w-full">
+            <StatsCard 
+              title="Pending" 
+              value={appointments.filter(a => a.status === 'pending').length.toString()} 
+              icon={Clock} 
+            />
+            <StatsCard
+              title="Confirmed"
+              value={appointments.filter(a => a.status === 'confirmed').length.toString()}
+              icon={CheckCircle}
+            />
+            <StatsCard 
+              title="Completed" 
+              value={appointments.filter(a => a.status === 'completed').length.toString()} 
+              icon={CheckCircle} 
+            />
+            <StatsCard 
+              title="Cancelled" 
+              value={appointments.filter(a => a.status === 'cancelled').length.toString()} 
+              icon={XCircle} 
+            />
           </div>
         </header>
 
@@ -225,20 +272,22 @@ export default function Appointments() {
             showOutsideDays
             className="w-full p-0 sm:p-3 pointer-events-auto"
             classNames={{
-              months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
+              months:
+                "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
               month: "space-y-4 flex-1",
               caption: "flex justify-center pt-1 relative items-center",
               caption_label: "text-lg font-medium",
               nav: "space-x-1 flex items-center",
-              nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+              nav_button:
+                "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
               nav_button_previous: "absolute left-1",
               nav_button_next: "absolute right-1",
               table: "w-full border-collapse",
               head_row: "flex w-full justify-around",
-              head_cell: "text-muted-foreground rounded-md w-full sm:w-24 font-medium text-sm p-2",
+              head_cell:
+                "text-muted-foreground rounded-md w-full sm:w-24 font-medium text-sm p-2",
               row: "flex w-full mt-2 sm:mt-3 justify-around gap-1 sm:gap-3",
-              cell:
-                "relative p-0 flex-1 h-16 sm:h-28 rounded-xl border border-border bg-primary/5 [&:has([aria-selected])]:ring-1 [&:has([aria-selected])]:ring-primary flex items-center justify-center text-center",
+              cell: "relative p-0 flex-1 h-16 sm:h-28 rounded-xl border border-border bg-primary/5 [&:has([aria-selected])]:ring-1 [&:has([aria-selected])]:ring-primary flex items-center justify-center text-center",
               day: "h-full w-full rounded-xl font-normal p-2 text-right text-base sm:text-lg",
               day_range_end: "day-range-end",
               day_selected:
@@ -253,7 +302,7 @@ export default function Appointments() {
             modifiers={{ hasEvent: hasAppointmentOn }}
             modifiersClassNames={{
               hasEvent:
-                "relative after:content-[''] after:absolute after:bottom-1 after:left-1 after:w-2 after:h-2 after:rounded-full after:bg-primary",
+                "relative after:content-[''] after:absolute after:bottom-1 after:left-1 after:w-3 after:h-3 after:rounded-full after:bg-red-500",
             }}
           />
         </Card>
@@ -263,18 +312,30 @@ export default function Appointments() {
           <SheetContent side="left" className="w-full sm:w-[420px] max-w-full">
             <SheetHeader>
               <SheetTitle className="text-xl md:text-2xl">
-                Appointments on {formattedSelectedDate && <span className="text-muted-foreground block text-lg sm:inline">({formattedSelectedDate})</span>}
+                Appointments on{" "}
+                {formattedSelectedDate && (
+                  <span className="text-muted-foreground block text-lg sm:inline">
+                    ({formattedSelectedDate})
+                  </span>
+                )}
               </SheetTitle>
-              <SheetDescription className="text-sm md:text-base">List of appointments for this date.</SheetDescription>
+              <SheetDescription className="text-sm md:text-base">
+                List of appointments for this date.
+              </SheetDescription>
             </SheetHeader>
 
             <div className="mt-4 space-y-3 max-h-[calc(100vh-160px)] overflow-y-auto pr-1">
               {appointmentsForSelectedDate.length > 0 ? (
                 appointmentsForSelectedDate.map((appointment) => (
-                  <Card key={appointment.id} className="p-4 border border-border">
+                  <Card
+                    key={appointment.id}
+                    className="p-4 border border-border"
+                  >
                     <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
                       <div className="space-y-1">
-                        <h3 className="font-semibold text-foreground text-lg">{appointment.name}</h3>
+                        <h3 className="font-semibold text-foreground text-lg">
+                          {appointment.name}
+                        </h3>
                         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                           <span className="inline-flex items-center gap-1">
                             <CalendarIcon className="h-4 w-4" />
@@ -291,77 +352,224 @@ export default function Appointments() {
                         </div>
                       </div>
                       <div className="flex flex-col items-start sm:items-end gap-2 min-w-max">
-                        <Badge className={`${statusColors[appointment.status]} text-sm`}>{appointment.status}</Badge>
+                        <Badge
+                          className={`${
+                            statusColors[appointment.status]
+                          } text-sm`}
+                        >
+                          {appointment.status}
+                        </Badge>
                       </div>
                     </div>
                     {appointment.message && (
-                      <p className="mt-3 text-sm text-foreground/80 bg-accent/50 p-3 rounded-md">{appointment.message}</p>
+                      <p className="mt-3 text-sm text-foreground/80 bg-accent/50 p-3 rounded-md">
+                        {appointment.message}
+                      </p>
                     )}
                     <div className="mt-3 text-left sm:text-right">
-                      <Dialog open={isAppointmentDetailsDialogOpen && selectedAppointment?.id === appointment.id} onOpenChange={setIsAppointmentDetailsDialogOpen}>
+                      <Dialog
+                        open={
+                          isAppointmentDetailsDialogOpen &&
+                          selectedAppointment?.id === appointment.id
+                        }
+                        onOpenChange={setIsAppointmentDetailsDialogOpen}
+                      >
                         <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" className="mt-2" onClick={() => {
-                            setSelectedAppointment(appointment);
-                            setIsAppointmentDetailsDialogOpen(true);
-                          }}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => {
+                              setSelectedAppointment(appointment);
+                              setIsAppointmentDetailsDialogOpen(true);
+                            }}
+                          >
                             <Eye className="h-4 w-4 mr-2" /> View Details
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-xs sm:max-w-md md:max-w-2xl overflow-y-auto">
                           <DialogHeader>
-                            <DialogTitle className="text-xl md:text-2xl">Appointment Details</DialogTitle>
-                            <DialogDescription className="text-sm md:text-base">View and manage appointment request</DialogDescription>
+                            <DialogTitle className="text-xl md:text-2xl">
+                              Appointment Details
+                            </DialogTitle>
+                            <DialogDescription className="text-sm md:text-base">
+                              View and manage appointment request
+                            </DialogDescription>
                           </DialogHeader>
                           {selectedAppointment && (
                             <div className="space-y-4">
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-3">
-                                  <h4 className="font-medium text-lg">Customer Information</h4>
+                                  <h4 className="font-medium text-lg">
+                                    Customer Information
+                                  </h4>
                                   <div className="space-y-2 text-sm">
-                                    <div><label className="text-muted-foreground">Name</label><p className="font-medium">{selectedAppointment.name}</p></div>
-                                    <div><label className="text-muted-foreground">Email</label><p className="font-medium">{selectedAppointment.email}</p></div>
-                                    <div><label className="text-muted-foreground">Phone</label><p className="font-medium">{selectedAppointment.phone || 'Not provided'}</p></div>
-                                    <div><label className="text-muted-foreground">Appointment Date</label><p className="font-medium">{selectedAppointment.appointment_date || 'Not provided'}</p></div>
-                                    <div><label className="text-muted-foreground">Appointment Time</label><p className="font-medium">{selectedAppointment.appointment_time || 'Not provided'}</p></div>
+                                    <div>
+                                      <label className="text-muted-foreground">
+                                        Name
+                                      </label>
+                                      <p className="font-medium">
+                                        {selectedAppointment.name}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <label className="text-muted-foreground">
+                                        Email
+                                      </label>
+                                      <p className="font-medium">
+                                        {selectedAppointment.email}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <label className="text-muted-foreground">
+                                        Phone
+                                      </label>
+                                      <p className="font-medium">
+                                        {selectedAppointment.phone ||
+                                          "Not provided"}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <label className="text-muted-foreground">
+                                        Appointment Date
+                                      </label>
+                                      <p className="font-medium">
+                                        {selectedAppointment.appointment_date ||
+                                          "Not provided"}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <label className="text-muted-foreground">
+                                        Appointment Time
+                                      </label>
+                                      <p className="font-medium">
+                                        {selectedAppointment.appointment_time ||
+                                          "Not provided"}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
                                 <div className="space-y-3">
-                                  <h4 className="font-medium text-lg">Vehicle Information</h4>
+                                  <h4 className="font-medium text-lg">
+                                    Vehicle Information
+                                  </h4>
                                   <div className="space-y-2 text-sm">
-                                    <div><label className="text-muted-foreground">Vehicle</label><p className="font-medium">{selectedAppointment.car_brand} {selectedAppointment.car_model} {selectedAppointment.car_year}</p></div>
-                                    <div><label className="text-muted-foreground">Chassis</label><p className="font-medium">{selectedAppointment.car_chassis || 'Not provided'}</p></div>
-                                    <div><label className="text-muted-foreground">Services</label><p className="font-medium">{selectedAppointment.service_types?.join(', ') || 'None'}</p></div>
+                                    <div>
+                                      <label className="text-muted-foreground">
+                                        Vehicle
+                                      </label>
+                                      <p className="font-medium">
+                                        {selectedAppointment.car_brand}{" "}
+                                        {selectedAppointment.car_model}{" "}
+                                        {selectedAppointment.car_year}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <label className="text-muted-foreground">
+                                        Chassis
+                                      </label>
+                                      <p className="font-medium">
+                                        {selectedAppointment.car_chassis ||
+                                          "Not provided"}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <label className="text-muted-foreground">
+                                        Services
+                                      </label>
+                                      <p className="font-medium">
+                                        {selectedAppointment.service_types?.join(
+                                          ", "
+                                        ) || "None"}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                               {selectedAppointment.message && (
-                                <div><label className="text-sm text-muted-foreground">Message</label><p className="p-3 bg-secondary rounded-lg text-sm">{selectedAppointment.message}</p></div>
+                                <div>
+                                  <label className="text-sm text-muted-foreground">
+                                    Message
+                                  </label>
+                                  <p className="p-3 bg-secondary rounded-lg text-sm">
+                                    {selectedAppointment.message}
+                                  </p>
+                                </div>
                               )}
                               <div className="flex flex-wrap gap-2 justify-end">
-                                {selectedAppointment.status === 'pending' && (
-                                  <Button className="w-full sm:w-auto" onClick={() => {
-                                    updateAppointmentStatus(selectedAppointment.id, 'confirmed');
-                                  }}>Confirm Appointment</Button>
+                                {selectedAppointment.status === "pending" && (
+                                  <Button
+                                    className="w-full sm:w-auto"
+                                    onClick={() => {
+                                      updateAppointmentStatus(
+                                        selectedAppointment.id,
+                                        "confirmed"
+                                      );
+                                    }}
+                                  >
+                                    Confirm Appointment
+                                  </Button>
                                 )}
-                                {(selectedAppointment.status === 'pending' || selectedAppointment.status === 'confirmed') && (
-                                  <Button variant="outline" className="w-full sm:w-auto" onClick={() => rescheduleAppointment(selectedAppointment.id)}>Reschedule</Button>
+                                {(selectedAppointment.status === "pending" ||
+                                  selectedAppointment.status ===
+                                    "confirmed") && (
+                                  <Button
+                                    variant="outline"
+                                    className="w-full sm:w-auto"
+                                    onClick={() =>
+                                      rescheduleAppointment(
+                                        selectedAppointment.id
+                                      )
+                                    }
+                                  >
+                                    Reschedule
+                                  </Button>
                                 )}
-                                {selectedAppointment.status === 'confirmed' && (
-                                  <Button className="w-full sm:w-auto" onClick={() => {
-                                    updateAppointmentStatus(selectedAppointment.id, 'completed');
-                                  }}>Mark as Completed</Button>
+                                {selectedAppointment.status === "confirmed" && (
+                                  <Button
+                                    className="w-full sm:w-auto"
+                                    onClick={() => {
+                                      updateAppointmentStatus(
+                                        selectedAppointment.id,
+                                        "completed"
+                                      );
+                                    }}
+                                  >
+                                    Mark as Completed
+                                  </Button>
                                 )}
-                                <Button variant="outline" asChild className="w-full sm:w-auto">
-                                  <a href={`mailto:${selectedAppointment.email}?subject=Appointment Confirmation&body=Dear ${selectedAppointment.name},%0A%0AYour appointment has been confirmed.%0A%0ABest regards,%0AAutoDealer Team`}>
+                                <Button
+                                  variant="outline"
+                                  asChild
+                                  className="w-full sm:w-auto"
+                                >
+                                  <a
+                                    href={`mailto:${selectedAppointment.email}?subject=Appointment Confirmation&body=Dear ${selectedAppointment.name},%0A%0AYour appointment has been confirmed.%0A%0ABest regards,%0AAutoDealer Team`}
+                                  >
                                     Send Email
                                   </a>
                                 </Button>
-                                {(selectedAppointment.status === 'pending' || selectedAppointment.status === 'confirmed') && (
-                                  <Button variant="destructive" className="w-full sm:w-auto" onClick={async () => {
-                                    if (confirm('Are you sure you want to cancel this appointment?')) {
-                                      await updateAppointmentStatus(selectedAppointment.id, 'cancelled');
-                                    }
-                                  }}>Cancel</Button>
+                                {(selectedAppointment.status === "pending" ||
+                                  selectedAppointment.status ===
+                                    "confirmed") && (
+                                  <Button
+                                    variant="destructive"
+                                    className="w-full sm:w-auto"
+                                    onClick={async () => {
+                                      if (
+                                        confirm(
+                                          "Are you sure you want to cancel this appointment?"
+                                        )
+                                      ) {
+                                        await updateAppointmentStatus(
+                                          selectedAppointment.id,
+                                          "cancelled"
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
                                 )}
                               </div>
                             </div>
@@ -382,10 +590,15 @@ export default function Appointments() {
       </div>
 
       {/* Reschedule Appointment Modal */}
-      <Dialog open={isRescheduleModalOpen} onOpenChange={setIsRescheduleModalOpen}>
+      <Dialog
+        open={isRescheduleModalOpen}
+        onOpenChange={setIsRescheduleModalOpen}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-xl md:text-2xl">Reschedule Appointment</DialogTitle>
+            <DialogTitle className="text-xl md:text-2xl">
+              Reschedule Appointment
+            </DialogTitle>
             <DialogDescription className="text-sm md:text-base">
               Choose a new date and time for this appointment.
             </DialogDescription>
@@ -399,7 +612,12 @@ export default function Appointments() {
                 id="date"
                 type="date"
                 value={rescheduleData.date}
-                onChange={(e) => setRescheduleData(prev => ({ ...prev, date: e.target.value }))}
+                onChange={(e) =>
+                  setRescheduleData((prev) => ({
+                    ...prev,
+                    date: e.target.value,
+                  }))
+                }
                 className="col-span-3"
               />
             </div>
@@ -411,17 +629,30 @@ export default function Appointments() {
                 id="time"
                 type="time"
                 value={rescheduleData.time}
-                onChange={(e) => setRescheduleData(prev => ({ ...prev, time: e.target.value }))}
+                onChange={(e) =>
+                  setRescheduleData((prev) => ({
+                    ...prev,
+                    time: e.target.value,
+                  }))
+                }
                 className="col-span-3"
               />
             </div>
           </div>
           <div className="flex flex-col sm:flex-row justify-end gap-2 mt-4">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsRescheduleModalOpen(false)}>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => setIsRescheduleModalOpen(false)}
+            >
               Cancel
             </Button>
-            <Button className="w-full sm:w-auto" onClick={handleSaveReschedule} disabled={loading}>
-              {loading ? 'Saving...' : 'Save Changes'}
+            <Button
+              className="w-full sm:w-auto"
+              onClick={handleSaveReschedule}
+              disabled={loading}
+            >
+              {loading ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </DialogContent>
