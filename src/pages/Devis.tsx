@@ -965,7 +965,7 @@ export default function Devis() {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  confirmDelete(request.id, "custom");
+                                  confirmDelete(request.id, "standard");
                                 }}
                                 disabled={loading}
                               >
