@@ -48,11 +48,11 @@ type StatusTotals = {
 };
 
 const PIE_COLORS = [
-  "#22c55e",
-  "#f97316",
-  "#0088FE",
-  "#ef4444",
-  "#eab308",
+  "#22c55e",//green
+  "#0088FE",//blue
+  "#ef4444",//red
+  "#eab308",//yellow
+  "#f97316",//orange
   "#000000",
 ];
 

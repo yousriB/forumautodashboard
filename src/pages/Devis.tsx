@@ -41,6 +41,8 @@ import {
   CheckCheck,
   Trash,
   Calendar as CalendarIcon,
+  X,
+  Info,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -75,7 +77,8 @@ interface DevisRequest {
   car_price: string;
   first_name: string;
   last_name: string;
-  email: string;
+  email:string;
+  region: string;
   phone_number: string;
   cin_or_nf: string;
   created_at: string;
@@ -83,6 +86,10 @@ interface DevisRequest {
   status: "pending" | "processing" | "completed" | "rejected" | "sold";
   responded_by: string | null;
   responded_at: string | null;
+  processed_at: string | null;
+  sold_at: string | null;
+  rejected_at: string | null;
+  completed_at: string | null;
 }
 
 // Custom devis requests
@@ -96,12 +103,17 @@ interface CustomDevisRequest {
   car_brand: string;
   car_model: string;
   car_version: string;
+  car_price: string;
   region: string;
   created_at: string;
   note: string;
   status: "pending" | "processing" | "completed" | "rejected" | "sold";
   responded_by: string | null;
   responded_at: string | null;
+  processed_at: string | null;
+  sold_at: string | null;
+  rejected_at: string | null;
+  completed_at: string | null;
 }
 
 const statusColors = {
@@ -169,39 +181,75 @@ export default function Devis() {
     "MG",
     "FORD",
     "DFSK",
-    "DONGFENG",
-    "BYD",
-    "RENAULT",
-    "DACIA",
-    "NISSAN",
+    "DONGFENG"
   ];
 
-  const filterRequests = (requests: any[]) => {
+  // Helper function to check if a request is within the selected date range
+  const isRequestInDateRange = (request: DevisRequest | CustomDevisRequest) => {
+    if (!dateRange?.from) return true; // If no date range is selected, include all requests
+    
+    const requestDate = new Date(request.created_at);
+    const fromDate = new Date(dateRange.from);
+    fromDate.setHours(0, 0, 0, 0);
+    
+    if (!dateRange.to) {
+      // If only start date is selected, include all requests from that day
+      const toDate = new Date(fromDate);
+      toDate.setDate(fromDate.getDate() + 1);
+      return requestDate >= fromDate && requestDate < toDate;
+    }
+    
+    // If both start and end dates are selected
+    const toDate = new Date(dateRange.to);
+    toDate.setHours(23, 59, 59, 999);
+    
+    return requestDate >= fromDate && requestDate <= toDate;
+  };
+
+  // Get all requests filtered by date range
+  const getAllRequests = () => {
+    const allRequests = [...standardDevisRequests, ...customDevisRequests];
+    return dateRange?.from ? allRequests.filter(isRequestInDateRange) : allRequests;
+  };
+
+  const filterRequests = (requests: (DevisRequest | CustomDevisRequest)[]) => {
     return requests.filter((request) => {
+      // Filter by search term
+      const searchLower = searchTerm.toLowerCase();
       const matchesSearch =
-        request.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        request.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        request.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        request.car_brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        request.car_model.toLowerCase().includes(searchTerm.toLowerCase());
-      
+        !searchTerm ||
+        request.first_name.toLowerCase().includes(searchLower) ||
+        request.last_name.toLowerCase().includes(searchLower) ||
+        request.email.toLowerCase().includes(searchLower) ||
+        request.phone_number.includes(searchTerm) ||
+        request.car_brand.toLowerCase().includes(searchLower) ||
+        request.car_model.toLowerCase().includes(searchLower) ||
+        request.car_version.toLowerCase().includes(searchLower) ||
+        (request as CustomDevisRequest).region?.toLowerCase().includes(searchLower) ||
+        request.status.toLowerCase().includes(searchLower);
+
+      // Filter by status
       const matchesStatus =
         statusFilter === "all" || request.status === statusFilter;
-      
+
+      // Filter by brand
       const matchesBrand =
-        brandFilter === "all" ||
-        request.car_brand.toLowerCase() === brandFilter.toLowerCase();
+        brandFilter === "all" || request.car_brand === brandFilter;
       
-      // Filter by date range
-      const requestDate = new Date(request.created_at);
-      const matchesDateRange = !dateRange.from || !dateRange.to || 
-        (requestDate >= new Date(dateRange.from.setHours(0, 0, 0, 0)) && 
-         requestDate <= new Date(dateRange.to.setHours(23, 59, 59, 999)));
+      // Filter by date range using the helper function
+      const matchesDateRange = isRequestInDateRange(request);
       
       return matchesSearch && matchesStatus && matchesBrand && matchesDateRange;
     });
   };
 
+  // Stats cards
+  const totalRequests = getAllRequests().length;
+  const totalPendingRequests = getAllRequests().filter((req) => req.status === "pending").length;
+  const totalProcessingRequests = getAllRequests().filter((req) => req.status === "processing").length;
+  const totalCompletedRequests = getAllRequests().filter((req) => req.status === "completed").length;
+  const totalRejectedRequests = getAllRequests().filter((req) => req.status === "rejected").length;
+  const totalSoldRequests = getAllRequests().filter((req) => req.status === "sold").length;
   const viewRequest = (
     request: DevisRequest | CustomDevisRequest,
     type: "standard" | "custom"
@@ -222,14 +270,35 @@ export default function Devis() {
       setLoading(true);
       const tableName =
         type === "standard" ? "devis_requests" : "custom_devis_requests";
+      // Prepare the update object with status and timestamps
+      const updateData: any = {
+        status: newStatus,
+        responded_at: new Date().toISOString(),
+        // You might want to add user ID of the admin who responded
+        // responded_by: currentUser?.id
+      };
+
+      // Set the appropriate timestamp based on status
+      const now = new Date().toISOString();
+      switch (newStatus) {
+        case 'processing':
+          updateData.processed_at = now;
+          break;
+        case 'sold':
+          updateData.sold_at = now;
+          break;
+        case 'rejected':
+          updateData.rejected_at = now;
+          break;
+        case 'completed':
+          updateData.completed_at = now;
+          break;
+        // No need to handle 'pending' as it's the default state
+      }
+
       const { data, error } = await supabase
         .from(tableName)
-        .update({
-          status: newStatus,
-          responded_at: new Date().toISOString(),
-          // You might want to add user ID of the admin who responded
-          // responded_by: currentUser?.id
-        })
+        .update(updateData)
         .eq("id", requestId)
         .select();
 
@@ -470,7 +539,7 @@ export default function Devis() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div className="dashboard-card p-3 sm:p-4">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg">
@@ -481,7 +550,7 @@ export default function Devis() {
                   Total Requests
                 </p>
                 <p className="text-lg sm:text-2xl font-bold text-foreground">
-                  {standardDevisRequests.length + customDevisRequests.length}
+                  {getAllRequests().length}
                 </p>
               </div>
             </div>
@@ -495,7 +564,7 @@ export default function Devis() {
                 <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="text-2xl font-bold text-foreground">
                   {
-                    [...standardDevisRequests, ...customDevisRequests].filter(
+                    getAllRequests().filter(
                       (r) => r.status === "pending"
                     ).length
                   }
@@ -512,7 +581,7 @@ export default function Devis() {
                 <p className="text-sm text-muted-foreground">Processing</p>
                 <p className="text-2xl font-bold text-foreground">
                   {
-                    [...standardDevisRequests, ...customDevisRequests].filter(
+                    getAllRequests().filter(
                       (r) => r.status === "processing"
                     ).length
                   }
@@ -529,8 +598,42 @@ export default function Devis() {
                 <p className="text-sm text-muted-foreground">Completed</p>
                 <p className="text-2xl font-bold text-foreground">
                   {
-                    [...standardDevisRequests, ...customDevisRequests].filter(
+                    getAllRequests().filter(
                       (r) => r.status === "completed"
+                    ).length
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="dashboard-card p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-yellow-500/10 rounded-lg">
+                <FileText className="h-5 w-5 text-yellow-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Sold</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {
+                    getAllRequests().filter(
+                      (r) => r.status === "sold"
+                    ).length
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="dashboard-card p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-500/10 rounded-lg">
+                <X className="h-5 w-5 text-red-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Rejected</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {
+                    getAllRequests().filter(
+                      (r) => r.status === "rejected"
                     ).length
                   }
                 </p>
@@ -1192,7 +1295,7 @@ export default function Devis() {
 
         {/* View Request Dialog */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-5xl ">
             <DialogHeader>
               <div className="flex justify-between items-start">
                 <div>
@@ -1219,7 +1322,7 @@ export default function Devis() {
             </DialogHeader>
             {selectedRequest && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-4">
                     <h4 className="font-medium text-foreground flex items-center gap-2">
                       <User className="h-4 w-4" />
@@ -1421,14 +1524,63 @@ export default function Devis() {
                           </Badge>
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-foreground flex items-center gap-2">
+                      <Info className="h-4 w-4" />
+                      Request Information
+                    </h4>
+                    <div className="space-y-3">
                       <div>
                         <Label className="text-sm text-muted-foreground">
-                          Request Date
+                          Created At
                         </Label>
                         <p className="font-medium">
                           {new Date(
                             selectedRequest.created_at
                           ).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-muted-foreground">
+                          Processed At
+                        </Label>
+                        <p className="font-medium">
+                          {selectedRequest.processed_at ? new Date(
+                            selectedRequest.processed_at
+                          ).toLocaleString() : 'Not Processed'}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-muted-foreground">
+                          Completed At
+                        </Label>
+                        <p className="font-medium">
+                          {selectedRequest.completed_at ? new Date(
+                            selectedRequest.completed_at
+                          ).toLocaleString() : 'Not Completed'}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-muted-foreground">
+                          Sold At
+                        </Label>
+                        <p className="font-medium">
+                          {selectedRequest.sold_at ? new Date(
+                            selectedRequest.sold_at
+                          ).toLocaleString() : 'Not Sold'}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-muted-foreground">
+                          Rejected At
+                        </Label>
+                        <p className="font-medium">
+                          {selectedRequest.rejected_at ? new Date(
+                            selectedRequest.rejected_at
+                          ).toLocaleString() : 'Not Rejected'}
                         </p>
                       </div>
                     </div>
