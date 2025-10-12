@@ -176,34 +176,57 @@ export default function Devis() {
             <DevisStats requests={allRequests} />
           )}
 
-          {/* Filters */}
-          {standardRequests.loading || customRequests.loading ? (
-            <LoadingSkeleton type="filters" />
-          ) : (
-            <DevisFilters
-              searchTerm={standardFilters.searchTerm}
-              onSearchChange={standardFilters.setSearchTerm}
-              statusFilter={standardFilters.statusFilter}
-              onStatusChange={standardFilters.setStatusFilter}
-              brandFilter={standardFilters.brandFilter}
-              onBrandChange={standardFilters.setBrandFilter}
-              dateRange={standardFilters.dateRange}
-              onDateRangeChange={standardFilters.setDateRange}
-              hasActiveFilters={standardFilters.hasActiveFilters}
-              onClearFilters={standardFilters.clearFilters}
-            />
-          )}
-
           {/* Tabs for different types */}
           <Tabs defaultValue="standard" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="standard" className="text-sm">
-                Standard Devis
-              </TabsTrigger>
-              <TabsTrigger value="custom" className="text-sm">
-                Custom Devis
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex flex-col gap-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="standard" className="text-sm">
+                  Standard Devis
+                </TabsTrigger>
+                <TabsTrigger value="custom" className="text-sm">
+                  Custom Devis
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Filters for each tab */}
+              <TabsContent value="standard" className="m-0">
+                {standardRequests.loading ? (
+                  <LoadingSkeleton type="filters" />
+                ) : (
+                  <DevisFilters
+                    searchTerm={standardFilters.searchTerm}
+                    onSearchChange={standardFilters.setSearchTerm}
+                    statusFilter={standardFilters.statusFilter}
+                    onStatusChange={standardFilters.setStatusFilter}
+                    brandFilter={standardFilters.brandFilter}
+                    onBrandChange={standardFilters.setBrandFilter}
+                    dateRange={standardFilters.dateRange}
+                    onDateRangeChange={standardFilters.setDateRange}
+                    hasActiveFilters={standardFilters.hasActiveFilters}
+                    onClearFilters={standardFilters.clearFilters}
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="custom" className="m-0">
+                {customRequests.loading ? (
+                  <LoadingSkeleton type="filters" />
+                ) : (
+                  <DevisFilters
+                    searchTerm={customFilters.searchTerm}
+                    onSearchChange={customFilters.setSearchTerm}
+                    statusFilter={customFilters.statusFilter}
+                    onStatusChange={customFilters.setStatusFilter}
+                    brandFilter={customFilters.brandFilter}
+                    onBrandChange={customFilters.setBrandFilter}
+                    dateRange={customFilters.dateRange}
+                    onDateRangeChange={customFilters.setDateRange}
+                    hasActiveFilters={customFilters.hasActiveFilters}
+                    onClearFilters={customFilters.clearFilters}
+                  />
+                )}
+              </TabsContent>
+            </div>
 
             <TabsContent value="standard" className="space-y-4">
               {standardRequests.loading ? (

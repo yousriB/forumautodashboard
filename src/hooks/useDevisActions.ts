@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { DevisService } from '@/services/devisService';
 import { DevisRequest, DevisStatus, DevisType } from '@/types/devis';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/utils/constants';
+import { useUser } from "@/context/UserContext";
 
 export const useDevisActions = (
   updateRequest: (id: string, data: Partial<DevisRequest>) => void,
@@ -9,6 +10,7 @@ export const useDevisActions = (
 ) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useUser();
 
   const clearError = useCallback(() => {
     setError(null);
@@ -23,7 +25,7 @@ export const useDevisActions = (
       setLoading(true);
       setError(null);
 
-      const result = await DevisService.updateStatus(id, status, type);
+      const result = await DevisService.updateStatus(id, status, type, user?.role === "admin");
       
       if (result.success) {
         // Optimistically update the UI

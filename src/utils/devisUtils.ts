@@ -32,7 +32,14 @@ export const formatDateTime = (dateString: string): string => {
 /**
  * Get available status transitions based on current status
  */
-export const getAvailableStatusTransitions = (currentStatus: DevisStatus): DevisStatus[] => {
+export const getAvailableStatusTransitions = (
+  currentStatus: DevisStatus,
+  isAdmin: boolean
+): DevisStatus[] => {
+  if (isAdmin) {
+    return ['pending', 'processing', 'completed', 'sold', 'rejected'];
+  }
+
   switch (currentStatus) {
     case 'pending':
       return ['processing', 'rejected'];
@@ -54,9 +61,10 @@ export const getAvailableStatusTransitions = (currentStatus: DevisStatus): Devis
  */
 export const isValidStatusTransition = (
   currentStatus: DevisStatus, 
-  newStatus: DevisStatus
+  newStatus: DevisStatus,
+  isAdmin: boolean
 ): boolean => {
-  return getAvailableStatusTransitions(currentStatus).includes(newStatus);
+  return getAvailableStatusTransitions(currentStatus, isAdmin).includes(newStatus);
 };
 
 /**
@@ -146,6 +154,55 @@ export const sortRequestsByDate = (requests: DevisRequest[]): DevisRequest[] => 
   return [...requests].sort((a, b) => 
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
+};
+
+const parseDDMMYYYYHHmmss = (dateString: string): Date | null => {
+  const parts = dateString.match(/(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2}):(\d{2})/);
+  if (!parts) return null;
+
+  const [, day, month, year, hours, minutes, seconds] = parts;
+  // Month is 0-indexed in Date constructor, so subtract 1
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes), parseInt(seconds));
+};
+
+/**
+ * Get the latest date among created_at, processed_at, completed_at, sold_at, rejected_at
+ */
+export const getLatestStatusDate = (request: DevisRequest): string => {
+  const dateStrings = [
+    request.created_at,
+    request.processed_at,
+    request.completed_at,
+    request.sold_at,
+    request.rejected_at,
+  ].filter(Boolean) as string[]; // Filter out null/undefined values
+
+  if (dateStrings.length === 0) {
+    return '';
+  }
+
+  let latestDate: Date | null = null;
+
+  dateStrings.forEach(dateString => {
+    let parsedDate: Date | null = parseDDMMYYYYHHmmss(dateString);
+    
+    if (!parsedDate) {
+      // Fallback for dates not matching the DD/MM/YYYY, HH:mm:ss format (e.g., ISO strings)
+      try {
+        parsedDate = new Date(dateString);
+      } catch (e) {
+        parsedDate = null;
+      }
+    }
+
+    if (parsedDate) {
+      if (!latestDate || parsedDate.getTime() > latestDate.getTime()) {
+        latestDate = parsedDate;
+      }
+    }
+  });
+
+  return latestDate ? formatDate(latestDate.toISOString()) : '';
 };
 
 /**

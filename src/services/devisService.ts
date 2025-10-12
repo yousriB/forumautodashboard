@@ -6,8 +6,9 @@ import {
   DevisStatus, 
   DevisType,
   DevisResponse,
-  FilterOptions 
+  FilterOptions
 } from "@/types/devis";
+import { isValidStatusTransition } from "@/utils/devisUtils";
 
 export class DevisService {
   /**
@@ -79,10 +80,32 @@ export class DevisService {
   static async updateStatus(
     id: string, 
     status: DevisStatus, 
-    type: DevisType
+    type: DevisType,
+    isAdmin: boolean
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const tableName = type === "standard" ? "devis_requests" : "custom_devis_requests";
+      
+      // First, fetch the current request to validate the status transition
+      const { data: currentRequestData, error: fetchError } = await supabase
+        .from(tableName)
+        .select("status")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      if (!currentRequestData) {
+        return { success: false, error: "Request not found." };
+      }
+
+      const currentStatus = currentRequestData.status as DevisStatus;
+
+      if (!isValidStatusTransition(currentStatus, status, isAdmin)) {
+        return { success: false, error: "Invalid status transition." };
+      }
       
       const updateData: any = {
         status,

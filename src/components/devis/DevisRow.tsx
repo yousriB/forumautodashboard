@@ -11,7 +11,11 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { Eye, Trash, Car, DollarSign } from "lucide-react";
 import { DevisRequest, DevisType } from "@/types/devis";
 import { StatusBadge } from "./StatusBadge";
-import { formatDate, getAvailableStatusTransitions } from "@/utils/devisUtils";
+import {
+  formatDate,
+  getAvailableStatusTransitions,
+  getLatestStatusDate,
+} from "@/utils/devisUtils";
 import { useUser } from "@/context/UserContext";
 
 interface DevisRowProps {
@@ -26,7 +30,10 @@ interface DevisRowProps {
 export const DevisRow: React.FC<DevisRowProps> = React.memo(
   ({ request, type, loading, onView, onStatusChange, onDelete }) => {
     const { user } = useUser();
-    const availableTransitions = getAvailableStatusTransitions(request.status);
+    const availableTransitions = getAvailableStatusTransitions(
+      request.status,
+      user?.role === "admin"
+    );
 
     const handleStatusChange = React.useCallback(
       (value: string) => {
@@ -123,7 +130,7 @@ export const DevisRow: React.FC<DevisRowProps> = React.memo(
         </TableCell>
 
         <TableCell className="text-muted-foreground hidden sm:table-cell">
-          {formatDate(request.created_at)}
+          {getLatestStatusDate(request)}
         </TableCell>
 
         <TableCell className="text-right">
