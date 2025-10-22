@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { TestDriveRequest, TestDriveStatus } from '@/types/testDrive';
-import { updateTestDriveStatus } from '@/services/testDriveService';
+import { updateTestDriveStatus, deleteTestDriveRequest } from '@/services/testDriveService';
 import { useToast } from '@/hooks/use-toast';
 
 export const useTestDriveActions = (
@@ -91,11 +91,66 @@ export const useTestDriveActions = (
     return updateStatus(requestId, 'cancelled');
   }, [updateStatus]);
 
+  const deleteRequest = useCallback(async (requestId: string): Promise<boolean> => {
+    setIsUpdating(requestId);
+    
+    // Store the request to delete for potential rollback
+    const requestToDelete = requests.find(r => r.id === requestId);
+    
+    try {
+      // Optimistic update - remove from local state
+      if (requestToDelete) {
+        setRequests(prevRequests =>
+          prevRequests.filter(request => request.id !== requestId)
+        );
+
+        // Clear selected request if it's the one being deleted
+        if (setSelectedRequest) {
+          setSelectedRequest(prev => 
+            prev?.id === requestId ? null : prev
+          );
+        }
+      }
+
+      // Delete from Supabase
+      await deleteTestDriveRequest(requestId);
+
+      // Show success toast
+      toast({
+        title: "Request Deleted",
+        description: "Test drive request has been deleted successfully.",
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting request:', error);
+      
+      // Revert optimistic update on error
+      if (requestToDelete) {
+        setRequests(prevRequests => [...prevRequests, requestToDelete].sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ));
+      }
+
+      // Show error toast
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete test drive request. Please try again.",
+        variant: "destructive",
+      });
+
+      return false;
+    } finally {
+      setIsUpdating(null);
+    }
+  }, [requests, setRequests, setSelectedRequest, toast]);
+
   return {
     updateStatus,
     confirmRequest,
     completeRequest,
     cancelRequest,
+    deleteRequest,
     isUpdating
   };
 };

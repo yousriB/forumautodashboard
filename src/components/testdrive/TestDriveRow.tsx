@@ -1,5 +1,5 @@
 import React from "react";
-import { Mail, Phone, Car, Eye } from "lucide-react";
+import { Mail, Phone, Car, Eye, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -14,16 +14,23 @@ import { formatDate, formatTime } from "@/utils/testDriveUtils";
 interface TestDriveRowProps {
   request: TestDriveRequest;
   onViewDetails: (request: TestDriveRequest) => void;
+  onDelete?: (request: TestDriveRequest) => void;
   isUpdating?: boolean;
 }
 
 export const TestDriveRow = React.memo<TestDriveRowProps>(
-  ({ request, onViewDetails, isUpdating = false }) => {
+  ({ request, onViewDetails, onDelete, isUpdating = false }) => {
     const StatusIcon = STATUS_ICONS[request.status];
 
     const handleViewDetails = React.useCallback(() => {
       onViewDetails(request);
     }, [request, onViewDetails]);
+
+    const handleDelete = React.useCallback(() => {
+      if (onDelete) {
+        onDelete(request);
+      }
+    }, [request, onDelete]);
 
     return (
       <TableRow className="table-row-hover">
@@ -93,9 +100,22 @@ export const TestDriveRow = React.memo<TestDriveRowProps>(
               size="sm"
               onClick={handleViewDetails}
               disabled={isUpdating}
+              title="View Details"
             >
               <Eye className="h-4 w-4" />
             </Button>
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDelete}
+                disabled={isUpdating}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                title="Delete Request"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </TableCell>
       </TableRow>

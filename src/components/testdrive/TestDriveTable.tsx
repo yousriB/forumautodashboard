@@ -14,12 +14,13 @@ import { TestDriveEmptyState } from "./TestDriveEmptyState";
 interface TestDriveTableProps {
   requests: TestDriveRequest[];
   onViewDetails: (request: TestDriveRequest) => void;
+  onDelete?: (request: TestDriveRequest) => void;
   isUpdating?: string | null;
   totalCount: number;
 }
 
 export const TestDriveTable = React.memo<TestDriveTableProps>(
-  ({ requests, onViewDetails, isUpdating, totalCount }) => {
+  ({ requests, onViewDetails, onDelete, isUpdating, totalCount }) => {
     if (requests.length === 0) {
       return <TestDriveEmptyState />;
     }
@@ -46,6 +47,7 @@ export const TestDriveTable = React.memo<TestDriveTableProps>(
                   key={request.id}
                   request={request}
                   onViewDetails={onViewDetails}
+                  onDelete={onDelete}
                   isUpdating={isUpdating === request.id}
                 />
               ))}

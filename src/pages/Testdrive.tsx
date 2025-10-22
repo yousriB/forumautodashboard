@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
 import { TestDriveRequest } from "@/types/testDrive";
@@ -15,12 +15,14 @@ import { TestDriveSkeleton } from "@/components/testdrive/TestDriveSkeleton";
 export default function Testdrive() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
-  const [selectedRequest, setSelectedRequest] = React.useState<TestDriveRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] =
+    React.useState<TestDriveRequest | null>(null);
 
   // Custom hooks for data management
-  const { requests, isLoading, error, refreshData, setRequests } = useTestDriveData();
+  const { requests, isLoading, error, refreshData, setRequests } =
+    useTestDriveData();
   const stats = useTestDriveStats(requests);
-  
+
   // Filters and search
   const {
     searchTerm,
@@ -33,11 +35,13 @@ export default function Testdrive() {
   } = useTestDriveFilters(requests);
 
   // Actions
-  const { confirmRequest, completeRequest, cancelRequest, isUpdating } = useTestDriveActions(
-    requests,
-    setRequests,
-    setSelectedRequest
-  );
+  const {
+    confirmRequest,
+    completeRequest,
+    cancelRequest,
+    deleteRequest,
+    isUpdating,
+  } = useTestDriveActions(requests, setRequests, setSelectedRequest);
 
   // Memoized callbacks for performance
   const handleViewDetails = useCallback((request: TestDriveRequest) => {
@@ -50,29 +54,52 @@ export default function Testdrive() {
     setSelectedRequest(null);
   }, []);
 
-  const handleConfirm = useCallback(async (requestId: string) => {
-    const success = await confirmRequest(requestId);
-    if (success) {
-      handleCloseDialog();
-    }
-  }, [confirmRequest, handleCloseDialog]);
-
-  const handleComplete = useCallback(async (requestId: string) => {
-    const success = await completeRequest(requestId);
-    if (success) {
-      handleCloseDialog();
-    }
-  }, [completeRequest, handleCloseDialog]);
-
-  const handleCancel = useCallback(async (requestId: string) => {
-    const confirmed = window.confirm("Are you sure you want to cancel this test drive request?");
-    if (confirmed) {
-      const success = await cancelRequest(requestId);
+  const handleConfirm = useCallback(
+    async (requestId: string) => {
+      const success = await confirmRequest(requestId);
       if (success) {
         handleCloseDialog();
       }
-    }
-  }, [cancelRequest, handleCloseDialog]);
+    },
+    [confirmRequest, handleCloseDialog]
+  );
+
+  const handleComplete = useCallback(
+    async (requestId: string) => {
+      const success = await completeRequest(requestId);
+      if (success) {
+        handleCloseDialog();
+      }
+    },
+    [completeRequest, handleCloseDialog]
+  );
+
+  const handleCancel = useCallback(
+    async (requestId: string) => {
+      const confirmed = window.confirm(
+        "Are you sure you want to cancel this test drive request?"
+      );
+      if (confirmed) {
+        const success = await cancelRequest(requestId);
+        if (success) {
+          handleCloseDialog();
+        }
+      }
+    },
+    [cancelRequest, handleCloseDialog]
+  );
+
+  const handleDelete = useCallback(
+    async (request: TestDriveRequest) => {
+      const confirmed = window.confirm(
+        `Are you sure you want to delete the test drive request for ${request.full_name}? This action cannot be undone.`
+      );
+      if (confirmed) {
+        await deleteRequest(request.id);
+      }
+    },
+    [deleteRequest]
+  );
 
   // Show loading state
   if (isLoading) {
@@ -130,6 +157,7 @@ export default function Testdrive() {
         <TestDriveTable
           requests={filteredRequests}
           onViewDetails={handleViewDetails}
+          onDelete={handleDelete}
           isUpdating={isUpdating}
           totalCount={requests.length}
         />
@@ -143,7 +171,7 @@ export default function Testdrive() {
             onConfirm={handleConfirm}
             onComplete={handleComplete}
             onCancel={handleCancel}
-            isUpdating={isUpdating}
+            isUpdating={isUpdating === selectedRequest?.id}
           />
         )}
       </div>
