@@ -10,6 +10,7 @@ import {
   TABLE_CONSTANTS,
 } from "@/constants/testDrive";
 import { formatDate, formatTime } from "@/utils/testDriveUtils";
+import { useUser } from "@/context/UserContext";
 
 interface TestDriveRowProps {
   request: TestDriveRequest;
@@ -20,7 +21,11 @@ interface TestDriveRowProps {
 
 export const TestDriveRow = React.memo<TestDriveRowProps>(
   ({ request, onViewDetails, onDelete, isUpdating = false }) => {
+    const { user } = useUser();
     const StatusIcon = STATUS_ICONS[request.status];
+
+    // Check if current user is admin
+    const isAdmin = user?.role === "admin";
 
     const handleViewDetails = React.useCallback(() => {
       onViewDetails(request);
@@ -104,14 +109,14 @@ export const TestDriveRow = React.memo<TestDriveRowProps>(
             >
               <Eye className="h-4 w-4" />
             </Button>
-            {onDelete && (
+            {onDelete && isAdmin && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleDelete}
                 disabled={isUpdating}
                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                title="Delete Request"
+                title="Delete Request (Admin Only)"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
