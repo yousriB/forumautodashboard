@@ -224,7 +224,7 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                       </Label>
                       <p className="font-medium flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
-                        {request.region}
+                        {request.region || "No region specified"}
                       </p>
                     </div>
                   )}

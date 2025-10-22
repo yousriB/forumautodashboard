@@ -10,7 +10,7 @@ export interface BaseDevisRequest {
   car_model: string;
   car_version: string;
   created_at: string;
-  note: string;
+  note: string | null;
   status: DevisStatus;
   responded_by: string | null;
   responded_at: string | null;
@@ -27,7 +27,7 @@ export interface StandardDevisRequest extends BaseDevisRequest {
 
 // Custom devis request (with region)
 export interface CustomDevisRequest extends BaseDevisRequest {
-  region: string;
+  region: string | null;
 }
 
 // Union type for all devis requests

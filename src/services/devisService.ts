@@ -8,7 +8,7 @@ import {
   DevisResponse,
   FilterOptions
 } from "@/types/devis";
-import { isValidStatusTransition } from "@/utils/devisUtils";
+import { isValidStatusTransition, getLatestStatusDateObject } from "@/utils/devisUtils";
 
 export class DevisService {
   /**
@@ -220,22 +220,22 @@ export class DevisService {
     
     return requests.filter((request) => {
       return (
-        request.first_name.toLowerCase().includes(searchLower) ||
-        request.last_name.toLowerCase().includes(searchLower) ||
-        request.email.toLowerCase().includes(searchLower) ||
-        request.phone_number.includes(searchTerm) ||
-        request.car_brand.toLowerCase().includes(searchLower) ||
-        request.car_model.toLowerCase().includes(searchLower) ||
-        request.car_version.toLowerCase().includes(searchLower) ||
-        request.note.toLowerCase().includes(searchLower) ||
-        request.status.toLowerCase().includes(searchLower) ||
-        ('region' in request && request.region.toLowerCase().includes(searchLower))
+        (request.first_name?.toLowerCase() || '').includes(searchLower) ||
+        (request.last_name?.toLowerCase() || '').includes(searchLower) ||
+        (request.email?.toLowerCase() || '').includes(searchLower) ||
+        (request.phone_number || '').includes(searchTerm) ||
+        (request.car_brand?.toLowerCase() || '').includes(searchLower) ||
+        (request.car_model?.toLowerCase() || '').includes(searchLower) ||
+        (request.car_version?.toLowerCase() || '').includes(searchLower) ||
+        (request.note?.toLowerCase() || '').includes(searchLower) ||
+        (request.status?.toLowerCase() || '').includes(searchLower) ||
+        ('region' in request && (request.region?.toLowerCase() || '').includes(searchLower))
       );
     });
   }
 
   /**
-   * Check if request is within date range
+   * Check if request is within date range based on latest status date
    */
   static isRequestInDateRange(
     request: DevisRequest,
@@ -243,7 +243,10 @@ export class DevisService {
   ): boolean {
     if (!dateRange?.from) return true;
     
-    const requestDate = new Date(request.created_at);
+    // Get the latest status date instead of just created_at
+    const latestStatusDate = getLatestStatusDateObject(request);
+    if (!latestStatusDate) return true; // If no valid date found, include the request
+    
     const fromDate = new Date(dateRange.from);
     fromDate.setHours(0, 0, 0, 0);
     
@@ -251,13 +254,13 @@ export class DevisService {
       // If only start date is selected, include all requests from that day
       const toDate = new Date(fromDate);
       toDate.setDate(fromDate.getDate() + 1);
-      return requestDate >= fromDate && requestDate < toDate;
+      return latestStatusDate >= fromDate && latestStatusDate < toDate;
     }
     
     // If both start and end dates are selected
     const toDate = new Date(dateRange.to);
     toDate.setHours(23, 59, 59, 999);
     
-    return requestDate >= fromDate && requestDate <= toDate;
+    return latestStatusDate >= fromDate && latestStatusDate <= toDate;
   }
 }

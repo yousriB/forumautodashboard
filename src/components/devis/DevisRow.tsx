@@ -78,7 +78,7 @@ export const DevisRow: React.FC<DevisRowProps> = React.memo(
               )}
               {"region" in request && (
                 <div className="text-xs text-muted-foreground">
-                  {request.region}
+                  {request.region || "No region specified"}
                 </div>
               )}
             </div>
@@ -110,7 +110,9 @@ export const DevisRow: React.FC<DevisRowProps> = React.memo(
 
         {"region" in request && (
           <TableCell className="hidden lg:table-cell">
-            <span className="font-medium">{request.region}</span>
+            <span className="font-medium">
+              {request.region || "No region specified"}
+            </span>
           </TableCell>
         )}
 

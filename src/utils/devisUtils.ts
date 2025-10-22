@@ -148,12 +148,20 @@ export const getRequestAge = (request: DevisRequest): number => {
 };
 
 /**
- * Sort requests by date (newest first)
+ * Sort requests by latest status date (newest first)
  */
 export const sortRequestsByDate = (requests: DevisRequest[]): DevisRequest[] => {
-  return [...requests].sort((a, b) => 
-    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+  return [...requests].sort((a, b) => {
+    const dateA = getLatestStatusDateObject(a);
+    const dateB = getLatestStatusDateObject(b);
+    
+    // If either date is null, put it at the end
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    
+    return dateB.getTime() - dateA.getTime();
+  });
 };
 
 const parseDDMMYYYYHHmmss = (dateString: string): Date | null => {
@@ -166,9 +174,9 @@ const parseDDMMYYYYHHmmss = (dateString: string): Date | null => {
 };
 
 /**
- * Get the latest date among created_at, processed_at, completed_at, sold_at, rejected_at
+ * Get the latest date object among created_at, processed_at, completed_at, sold_at, rejected_at
  */
-export const getLatestStatusDate = (request: DevisRequest): string => {
+export const getLatestStatusDateObject = (request: DevisRequest): Date | null => {
   const dateStrings = [
     request.created_at,
     request.processed_at,
@@ -178,30 +186,45 @@ export const getLatestStatusDate = (request: DevisRequest): string => {
   ].filter(Boolean) as string[]; // Filter out null/undefined values
 
   if (dateStrings.length === 0) {
-    return '';
+    return null;
   }
 
   let latestDate: Date | null = null;
 
   dateStrings.forEach(dateString => {
-    let parsedDate: Date | null = parseDDMMYYYYHHmmss(dateString);
+    let parsedDate: Date | null = null;
+    
+    // Try parsing as DD/MM/YYYY, HH:mm:ss format first
+    parsedDate = parseDDMMYYYYHHmmss(dateString);
     
     if (!parsedDate) {
-      // Fallback for dates not matching the DD/MM/YYYY, HH:mm:ss format (e.g., ISO strings)
+      // Fallback for ISO strings and other formats
       try {
         parsedDate = new Date(dateString);
+        // Check if the date is valid
+        if (isNaN(parsedDate.getTime())) {
+          parsedDate = null;
+        }
       } catch (e) {
         parsedDate = null;
       }
     }
 
-    if (parsedDate) {
+    if (parsedDate && parsedDate.getTime() > 0) {
       if (!latestDate || parsedDate.getTime() > latestDate.getTime()) {
         latestDate = parsedDate;
       }
     }
   });
 
+  return latestDate;
+};
+
+/**
+ * Get the latest date among created_at, processed_at, completed_at, sold_at, rejected_at
+ */
+export const getLatestStatusDate = (request: DevisRequest): string => {
+  const latestDate = getLatestStatusDateObject(request);
   return latestDate ? formatDate(latestDate.toISOString()) : '';
 };
 
