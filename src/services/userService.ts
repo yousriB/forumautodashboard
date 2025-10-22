@@ -1,5 +1,6 @@
 import { User, UserFormData } from '@/types/user.types';
 import { supabase } from '@/lib/supabaseClient';
+import bcrypt from 'bcryptjs';
 
 export const userService = {
   async getUsers(): Promise<User[]> {
@@ -17,11 +18,14 @@ export const userService = {
   },
 
   async createUser(userData: Omit<UserFormData, 'id'>): Promise<User> {
+    // Hash the password before storing
+    const hashedPassword = await bcrypt.hash(userData.password, 10);
+    
     const { data, error } = await supabase
       .from('users')
       .insert([{
         email: userData.email,
-        password: userData.password, // Note: In production, handle password hashing on the server
+        password: hashedPassword,
         role: userData.role,
         brand: userData.brand || null,
       }])
@@ -43,7 +47,8 @@ export const userService = {
     };
 
     if (userData.password) {
-      updateData.password = userData.password; // Note: Handle hashing appropriately
+      // Hash the password before storing
+      updateData.password = await bcrypt.hash(userData.password, 10);
     }
 
     const { data, error } = await supabase
