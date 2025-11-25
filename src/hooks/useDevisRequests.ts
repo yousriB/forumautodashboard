@@ -3,67 +3,67 @@ import { useUser } from '@/context/UserContext';
 import { DevisService } from '@/services/devisService';
 import { DevisRequest, DevisType, FilterOptions } from '@/types/devis';
 
-export const useDevisRequests = (type: DevisType) => {
-  const [requests, setRequests] = useState<DevisRequest[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { user } = useUser();
+export const useDevisRequests = (type: DevisType | 'all') => {
+    const [requests, setRequests] = useState<DevisRequest[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const { user } = useUser();
 
-  const fetchRequests = useCallback(async (filters?: FilterOptions) => {
-    if (!user) return;
+    const fetchRequests = useCallback(async (filters?: FilterOptions) => {
+        if (!user) return;
 
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await DevisService.fetchRequests(
-        type,
-        filters,
-        user.role,
-        user.brand
-      );
+        try {
+            setLoading(true);
+            setError(null);
 
-      if (response.error) {
-        setError(response.error);
-      } else {
-        setRequests(response.data);
-      }
-    } catch (err) {
-      console.error(`Error fetching ${type} devis requests:`, err);
-      setError('Failed to load requests');
-    } finally {
-      setLoading(false);
-    }
-  }, [type, user]);
+            const response = await DevisService.fetchRequests(
+                type,
+                filters,
+                user.role,
+                user.brand
+            );
 
-  const updateRequest = useCallback((id: string, updatedRequest: Partial<DevisRequest>) => {
-    setRequests(prev => 
-      prev.map(req => 
-        req.id === id ? { ...req, ...updatedRequest } : req
-      )
-    );
-  }, []);
+            if (response.error) {
+                setError(response.error);
+            } else {
+                setRequests(response.data);
+            }
+        } catch (err) {
+            console.error(`Error fetching ${type} devis requests:`, err);
+            setError('Failed to load requests');
+        } finally {
+            setLoading(false);
+        }
+    }, [type, user]);
 
-  const removeRequest = useCallback((id: string) => {
-    setRequests(prev => prev.filter(req => req.id !== id));
-  }, []);
+    const updateRequest = useCallback((id: string, updatedRequest: Partial<DevisRequest>) => {
+        setRequests(prev =>
+            prev.map(req =>
+                req.id === id ? { ...req, ...updatedRequest } : req
+            )
+        );
+    }, []);
 
-  const addRequest = useCallback((newRequest: DevisRequest) => {
-    setRequests(prev => [newRequest, ...prev]);
-  }, []);
+    const removeRequest = useCallback((id: string) => {
+        setRequests(prev => prev.filter(req => req.id !== id));
+    }, []);
 
-  useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
+    const addRequest = useCallback((newRequest: DevisRequest) => {
+        setRequests(prev => [newRequest, ...prev]);
+    }, []);
 
-  return {
-    requests,
-    loading,
-    error,
-    fetchRequests,
-    updateRequest,
-    removeRequest,
-    addRequest,
-    refetch: () => fetchRequests(),
-  };
+    useEffect(() => {
+        fetchRequests();
+    }, [fetchRequests]);
+
+    return {
+        requests,
+        loading,
+        error,
+        fetchRequests,
+        updateRequest,
+        removeRequest,
+        addRequest,
+        refetch: () => fetchRequests(),
+    };
 };

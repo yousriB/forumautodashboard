@@ -1,41 +1,19 @@
 import React from "react";
-import { FileText, X } from "lucide-react";
+import { 
+  FileText, 
+  X, 
+  CheckCircle2, 
+  Loader2, 
+  DollarSign, 
+  Calendar 
+} from "lucide-react";
 import { DevisRequest } from "@/types/devis";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 
 interface DevisStatsProps {
   requests: DevisRequest[];
   className?: string;
 }
-
-interface StatCardProps {
-  title: string;
-  count: number;
-  icon: React.ReactNode;
-  iconColor: string;
-  iconBg: string;
-}
-
-const StatCard: React.FC<StatCardProps> = React.memo(
-  ({ title, count, icon, iconColor, iconBg }) => (
-    <div className="dashboard-card p-3 sm:p-4">
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className={`p-1.5 sm:p-2 ${iconBg} rounded-lg`}>
-          <div className={`h-4 w-4 sm:h-5 sm:w-5 ${iconColor}`}>{icon}</div>
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs sm:text-sm text-muted-foreground truncate">
-            {title}
-          </p>
-          <p className="text-lg sm:text-2xl font-bold text-foreground">
-            {count}
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-);
-
-StatCard.displayName = "StatCard";
 
 export const DevisStats: React.FC<DevisStatsProps> = React.memo(
   ({ requests, className }) => {
@@ -58,51 +36,56 @@ export const DevisStats: React.FC<DevisStatsProps> = React.memo(
 
     return (
       <div
-        className={`grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 ${
+        className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 ${
           className || ""
         }`}
       >
-        <StatCard
+        <StatsCard
           title="Total Requests"
-          count={stats.total}
-          icon={<FileText />}
-          iconColor="text-primary"
-          iconBg="bg-primary/10"
+          value={stats.total}
+          icon={FileText}
+          description="All time requests"
+          className="border-l-4 border-l-primary"
         />
-        <StatCard
+        <StatsCard
           title="Pending"
-          count={stats.pending}
-          icon={<FileText />}
-          iconColor="text-warning"
-          iconBg="bg-warning/10"
+          value={stats.pending}
+          icon={Calendar}
+          description="Awaiting action"
+          className="border-l-4 border-l-yellow-500"
         />
-        <StatCard
+        <StatsCard
           title="Processing"
-          count={stats.processing}
-          icon={<FileText />}
-          iconColor="text-primary"
-          iconBg="bg-primary/10"
+          value={stats.processing}
+          icon={Loader2}
+          description="In progress"
+          className="border-l-4 border-l-blue-500"
         />
-        <StatCard
+        <StatsCard
           title="Completed"
-          count={stats.completed}
-          icon={<FileText />}
-          iconColor="text-success"
-          iconBg="bg-success/10"
+          value={stats.completed}
+          icon={CheckCircle2}
+          description="Finished"
+          className="border-l-4 border-l-green-500"
         />
-        <StatCard
+        <StatsCard
           title="Sold"
-          count={stats.sold}
-          icon={<FileText />}
-          iconColor="text-yellow-500"
-          iconBg="bg-yellow-500/10"
+          value={stats.sold}
+          icon={DollarSign}
+          description="Closed deals"
+          className="border-l-4 border-l-green-700"
         />
-        <StatCard
+        {/* We can omit Rejected or add it if needed, layout fits 5 nicely. 
+            If we want 6, grid-cols-3 or similar. 
+            Dashboard has 5 cards. Let's stick to 5 or add Rejected as 6th.
+            Let's add Rejected as it's important.
+        */}
+         <StatsCard
           title="Rejected"
-          count={stats.rejected}
-          icon={<X />}
-          iconColor="text-red-500"
-          iconBg="bg-red-500/10"
+          value={stats.rejected}
+          icon={X}
+          description="Declined"
+          className="border-l-4 border-l-red-500"
         />
       </div>
     );

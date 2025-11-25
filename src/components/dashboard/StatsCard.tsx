@@ -1,45 +1,23 @@
-import { LucideIcon } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-interface StatsCardProps {
-  title: string;
-  value: string;
-  change?: string;
-  changeType?: "positive" | "negative" | "neutral";
-  icon: LucideIcon;
-  className?: string;
-}
-
-export function StatsCard({
-  title,
-  value,
-  change,
-  changeType = "neutral",
-  icon: Icon,
-  className,
-}: StatsCardProps) {
+export function StatsCard({ title, value, icon: Icon, description, className }) {
   return (
-    <div className={cn("stat-card", className)}>
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold text-foreground mt-2">{value}</p>
-          {change && (
-            <p
-              className={cn("text-sm mt-1", {
-                "text-success": changeType === "positive",
-                "text-destructive": changeType === "negative",
-                "text-muted-foreground": changeType === "neutral",
-              })}
-            >
-              {change}
-            </p>
-          )}
-        </div>
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-primary">
-          <Icon className="h-6 w-6 text-white" />
-        </div>
-      </div>
-    </div>
+    <Card className={cn("overflow-hidden", className)}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">
+          {title}
+        </CardTitle>
+        {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        {description && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {description}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }

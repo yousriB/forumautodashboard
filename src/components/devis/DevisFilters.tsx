@@ -86,140 +86,151 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
     );
 
     return (
-      <div className={`flex flex-col sm:flex-row gap-4 ${className || ""}`}>
-        <div className="relative flex-1">
+      <div className={`flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between ${className || ""}`}>
+        {/* Search Bar - Left Side */}
+        <div className="relative w-full lg:w-96">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search by name, email, or car details..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9 input-field"
+            className="pl-9 bg-white"
             maxLength={UI.MAX_SEARCH_LENGTH}
           />
         </div>
 
-        <Select value={brandFilter} onValueChange={onBrandChange}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Filter by brand" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Brands</SelectItem>
-            {CAR_BRANDS.map((brand) => (
-              <SelectItem key={brand} value={brand}>
-                {brand}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Filters - Right Side */}
+        <div className="flex flex-wrap gap-2 bg-white p-2 rounded-lg border shadow-sm w-full lg:w-auto">
+          <Select value={brandFilter} onValueChange={onBrandChange}>
+            <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0 font-medium">
+              <SelectValue placeholder="Brand" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Brands</SelectItem>
+              {CAR_BRANDS.map((brand) => (
+                <SelectItem key={brand} value={brand}>
+                  {brand}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full hidden sm:w-48 sm:flex justify-start text-left font-normal"
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange?.from ? (
-                dateRange.to ? (
-                  <>
-                    {format(dateRange.from, "MMM d")} -{" "}
-                    {format(dateRange.to, "MMM d, y")}
-                  </>
+          <div className="w-px h-8 bg-gray-200 hidden sm:block"></div>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-[200px] justify-start text-left font-normal border-none shadow-none hover:bg-transparent"
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "MMM d")} -{" "}
+                      {format(dateRange.to, "MMM d, y")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "MMM d, y")
+                  )
                 ) : (
-                  format(dateRange.from, "MMM d, y")
-                )
-              ) : (
-                <span>Date range</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
-            <Calendar
-              initialFocus
-              mode="range"
-              defaultMonth={dateRange?.from}
-              selected={{
-                from: dateRange?.from,
-                to: dateRange?.to,
-              }}
-              onSelect={(range) => {
-                onDateRangeChange({
-                  from: range?.from,
-                  to: range?.to,
-                });
-              }}
-              numberOfMonths={2}
-            />
-            <div className="flex flex-wrap gap-2 p-2 border-t">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => handleDatePreset(DATE_PRESETS.TODAY)}
-              >
-                Today
+                  <span>Date range</span>
+                )}
               </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={{
+                  from: dateRange?.from,
+                  to: dateRange?.to,
+                }}
+                onSelect={(range) => {
+                  onDateRangeChange({
+                    from: range?.from,
+                    to: range?.to,
+                  });
+                }}
+                numberOfMonths={2}
+              />
+              <div className="flex flex-wrap gap-2 p-2 border-t">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => handleDatePreset(DATE_PRESETS.TODAY)}
+                >
+                  Today
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => handleDatePreset(DATE_PRESETS.YESTERDAY)}
+                >
+                  Yesterday
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => handleDatePreset(DATE_PRESETS.LAST_7_DAYS)}
+                >
+                  Last 7 days
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => handleDatePreset(DATE_PRESETS.LAST_30_DAYS)}
+                >
+                  Last 30 days
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => handleDatePreset(DATE_PRESETS.CLEAR)}
+                >
+                  Clear
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <div className="w-px h-8 bg-gray-200 hidden sm:block"></div>
+
+          <Select value={statusFilter} onValueChange={onStatusChange}>
+            <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0 font-medium">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="sold">Sold</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {hasActiveFilters && (
+            <>
+              <div className="w-px h-8 bg-gray-200 hidden sm:block"></div>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs"
-                onClick={() => handleDatePreset(DATE_PRESETS.YESTERDAY)}
-              >
-                Yesterday
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => handleDatePreset(DATE_PRESETS.LAST_7_DAYS)}
-              >
-                Last 7 days
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => handleDatePreset(DATE_PRESETS.LAST_30_DAYS)}
-              >
-                Last 30 days
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => handleDatePreset(DATE_PRESETS.CLEAR)}
+                onClick={onClearFilters}
+                className="text-muted-foreground hover:text-foreground"
               >
                 Clear
               </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <Select value={statusFilter} onValueChange={onStatusChange}>
-          <SelectTrigger className="w-full sm:w-48">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="sold">Sold</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {hasActiveFilters && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClearFilters}
-            className="w-full sm:w-auto"
-          >
-            Clear Filters
-          </Button>
-        )}
+            </>
+          )}
+        </div>
       </div>
     );
   }

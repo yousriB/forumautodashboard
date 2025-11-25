@@ -26,10 +26,11 @@ export const useDevisActions = (
       setError(null);
 
       const result = await DevisService.updateStatus(id, status, type, user?.role === "admin");
-      
+
       if (result.success) {
-        // Optimistically update the UI
-        updateRequest(id, { status });
+        // Update the UI with the returned data (which includes new timestamps from the trigger)
+        // If data is missing for some reason, fallback to just status
+        updateRequest(id, result.data || { status });
       } else {
         setError(result.error || ERROR_MESSAGES.UPDATE_FAILED);
       }
@@ -47,7 +48,7 @@ export const useDevisActions = (
       setError(null);
 
       const result = await DevisService.deleteRequest(id, type);
-      
+
       if (result.success) {
         // Optimistically update the UI
         removeRequest(id);
@@ -72,7 +73,7 @@ export const useDevisActions = (
       setError(null);
 
       const result = await DevisService.updateRequest(id, data, type);
-      
+
       if (result.success) {
         // Optimistically update the UI
         updateRequest(id, data);

@@ -6,7 +6,10 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import {
   DollarSign,
   Calendar,
-  MessageCircle,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Car,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -32,73 +35,38 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Type for the data returned by get_requests_pie_chart_data
-type PieChartRequestData = {
-  status_category: string;
-  request_count: number;
-  total_requests: number;
-}[];
-
-// Type for the new RPC function
-type StatusTotals = {
-  processing: number;
-  completed: number;
-  pending: number;
-  sold: number;
+// Color Palette mapping for statuses
+const STATUS_COLORS = {
+  created: "#eab308",    // Yellow for Pending/Created
+  processing: "#3b82f6", // Blue for Processing
+  completed: "#22c55e",  // Green for Completed
+  sold: "#15803d",       // Dark Green for Sold
+  rejected: "#ef4444",   // Red for Rejected
 };
-
-const PIE_COLORS = [
-  "#22c55e",//green
-  "#0088FE",//blue
-  "#ef4444",//red
-  "#eab308",//yellow
-  "#f97316",//orange
-  "#000000",
-];
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
-  // StatsCards data
-  const [statusTotals, setStatusTotals] = useState<StatusTotals>({
-    processing: 0,
-    completed: 0,
-    pending: 0,
-    sold: 0,
+  // Default to current date
+  const currentDate = new Date();
+  const [selectedBrand, setSelectedBrand] = useState("All");
+  const [selectedMonth, setSelectedMonth] = useState((currentDate.getMonth() + 1).toString());
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
+
+  // Data State
+  const [stats, setStats] = useState({
+    created_count: 0,
+    processing_count: 0,
+    completed_count: 0,
+    sold_count: 0,
+    rejected_count: 0,
   });
 
-  // Pie Chart Filters
-  const [selectedBrand, setSelectedBrand] = useState<string>("all");
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
-  const [selectedYear, setSelectedYear] = useState<string>("all");
-
-  // Pie Chart Data
-  const [pieChartData, setPieChartData] = useState<PieChartRequestData | null>(
-    null
-  );
-  const [pieChartTotalRequests, setPieChartTotalRequests] = useState<number>(0);
-  const [pieChartLoading, setPieChartLoading] = useState(false);
-
   const brands = [
-    "ISUZU",
-    "CHEVROLET",
-    "CHERY",
-    "GREAT WALL",
-    "HAVAL",
-    "GAC",
-    "TOYOTA",
-    "SUZUKI",
-    "MG",
-    "FORD",
-    "DFSK",
-    "DONGFENG",
-    "BYD",
-    "RENAULT",
-    "DACIA",
-    "NISSAN",
+    "ISUZU", "CHEVROLET", "CHERY", "GREAT WALL", "HAVAL", "GAC", "TOYOTA",
+    "SUZUKI", "MG", "FORD", "DFSK", "DONGFENG", "BYD", "RENAULT", "DACIA", "NISSAN",
   ];
 
-  // Helper arrays for months and years
   const months = useMemo(
     () =>
       Array.from({ length: 12 }, (_, i) => ({
@@ -111,257 +79,246 @@ export default function Dashboard() {
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
     return Array.from({ length: 5 }, (_, i) => ({
-      value: (currentYear + i).toString(),
-      label: (currentYear + i).toString(),
+      value: (currentYear - 2 + i).toString(), // Show last 2 years + next 2 years
+      label: (currentYear - 2 + i).toString(),
     }));
   }, []);
 
-  // Fetch StatsCards data
   useEffect(() => {
-    const fetchStatusTotals = async () => {
+    const fetchStats = async () => {
       setLoading(true);
-      const { data, error } = await supabase.rpc("get_requests_status_totals");
-      if (error) {
-        console.error("Error fetching status totals:", error.message);
-      } else if (data && data.length > 0) {
-        setStatusTotals(data[0]);
-      }
-      setLoading(false);
-    };
+      
+      try {
+        const { data, error } = await supabase.rpc("get_monthly_car_stats", {
+          target_year: parseInt(selectedYear),
+          target_month: parseInt(selectedMonth),
+          target_brand: selectedBrand,
+        });
 
-    fetchStatusTotals();
-  }, []);
+        if (error) throw error;
 
-  // Fetch pie chart data whenever filters change
-  useEffect(() => {
-    const fetchPieChartData = async () => {
-      setPieChartLoading(true);
-      const { data, error } = await supabase.rpc(
-        "get_requests_pie_chart_data",
-        {
-          p_brand: selectedBrand === "all" ? null : selectedBrand,
-          p_month:
-            selectedMonth === "all" ? null : parseInt(selectedMonth, 10),
-          p_year: selectedYear === "all" ? null : parseInt(selectedYear, 10),
+        if (data && data.length > 0) {
+          setStats(data[0]);
+        } else {
+          // Reset if no data returned
+          setStats({
+            created_count: 0,
+            processing_count: 0,
+            completed_count: 0,
+            sold_count: 0,
+            rejected_count: 0,
+          });
         }
-      );
-
-      if (error) {
-        console.error("Error fetching pie chart data:", error.message);
-        setPieChartData(null);
-        setPieChartTotalRequests(0);
-      } else {
-        setPieChartData(data as PieChartRequestData);
-        const total =
-          data && data.length > 0 ? data[0].total_requests : 0;
-        setPieChartTotalRequests(total);
+      } catch (error) {
+        console.error("Error fetching car stats:", error.message);
+      } finally {
+        setLoading(false);
       }
-      setPieChartLoading(false);
     };
 
-    fetchPieChartData();
+    fetchStats();
   }, [selectedBrand, selectedMonth, selectedYear]);
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="p-6">Loading dashboard...</div>
-      </DashboardLayout>
-    );
-  }
+  // Prepare Chart Data
+  const chartData = [
+    { name: "Pending", value: stats.created_count, color: STATUS_COLORS.created },
+    { name: "Processing", value: stats.processing_count, color: STATUS_COLORS.processing },
+    { name: "Completed", value: stats.completed_count, color: STATUS_COLORS.completed },
+    { name: "Sold", value: stats.sold_count, color: STATUS_COLORS.sold },
+    { name: "Rejected", value: stats.rejected_count, color: STATUS_COLORS.rejected },
+  ].filter(item => item.value > 0); // Hide empty slices
 
-  // Prepare pie chart data
-  const processedPieChartData = pieChartData
-    ? pieChartData.map((item, index) => ({
-        ...item,
-        percentage:
-          item.total_requests > 0
-            ? (item.request_count / item.total_requests) * 100
-            : 0,
-        fill: PIE_COLORS[index % PIE_COLORS.length],
-      }))
-    : [];
+  const totalRequests = 
+    stats.created_count + 
+    stats.processing_count + 
+    stats.completed_count + 
+    stats.sold_count + 
+    stats.rejected_count;
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Page Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-            Dashboard
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-2">
-            Welcome back! Here's what's happening with your dealership today.
-          </p>
+        {/* Header Section */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard</h1>
+            <p className="text-muted-foreground mt-1">
+              Performance overview for <span className="font-medium text-foreground">{months.find(m => m.value === selectedMonth)?.label} {selectedYear}</span>
+            </p>
+          </div>
+          
+          {/* Filters Bar */}
+          <div className="flex flex-wrap gap-3 bg-white p-2 rounded-lg border shadow-sm w-full sm:w-auto">
+            <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+              <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0 font-medium">
+                <SelectValue placeholder="Brand" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Brands</SelectItem>
+                {brands.map((brand) => (
+                  <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <div className="w-px h-8 bg-gray-200 hidden sm:block"></div>
+
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[130px] border-none shadow-none focus:ring-0 font-medium">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[100px] border-none shadow-none focus:ring-0 font-medium">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((year) => (
+                  <SelectItem key={year.value} value={year.value}>{year.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+        {/* Stats Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <StatsCard
-            title="Completed Sales"
-            value={statusTotals.completed.toString()}
-            icon={DollarSign}
-          />
-          <StatsCard
-            title="Pending Sales"
-            value={statusTotals.pending.toString()}
+            title="Pending"
+            value={stats.created_count}
             icon={Calendar}
+            description="Created this month"
+            className="border-l-4 border-l-yellow-500"
           />
           <StatsCard
-            title="Processing Sales"
-            value={statusTotals.processing.toString()}
-            icon={MessageCircle}
+            title="Processing"
+            value={stats.processing_count}
+            icon={Loader2}
+            description="Active processing"
+            className="border-l-4 border-l-blue-500"
           />
           <StatsCard
-            title="Sold Cars"
-            value={statusTotals.sold.toString()}
+            title="Completed"
+            value={stats.completed_count}
+            icon={CheckCircle2}
+            description="Finished requests"
+            className="border-l-4 border-l-green-500"
+          />
+          <StatsCard
+            title="Sold"
+            value={stats.sold_count}
             icon={DollarSign}
+            description="Closed sales"
+            className="border-l-4 border-l-green-700"
+          />
+          <StatsCard
+            title="Rejected"
+            value={stats.rejected_count}
+            icon={XCircle}
+            description="Dropped requests"
+            className="border-l-4 border-l-red-500"
           />
         </div>
 
-        {/* Request Status Pie Chart */}
-               <Card>
-          <CardHeader>
-            <CardTitle>Request Status Overview</CardTitle>
-            <CardDescription>
-              Status breakdown of requests by brand, month, and year.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-4 mb-6 items-center">
-              {/* Brand Filter */}
-              <div>
-                <label
-                  htmlFor="brand-select"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Brand
-                </label>
-                <Select
-                  value={selectedBrand}
-                  onValueChange={setSelectedBrand}
-                  name="brand-select"
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Brand" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Brands</SelectItem>
-                    {brands.map((brand) => (
-                      <SelectItem key={brand} value={brand}>
-                        {brand}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Month Filter */}
-              <div>
-                <label
-                  htmlFor="month-select"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Month
-                </label>
-                <Select
-                  value={selectedMonth}
-                  onValueChange={setSelectedMonth}
-                  name="month-select"
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Months</SelectItem>
-                    {months.map((month) => (
-                      <SelectItem key={month.value} value={month.value}>
-                        {month.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Year Filter */}
-              <div>
-                <label
-                  htmlFor="year-select"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Year
-                </label>
-                <Select
-                  value={selectedYear}
-                  onValueChange={setSelectedYear}
-                  name="year-select"
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Years</SelectItem>
-                    {years.map((year) => (
-                      <SelectItem key={year.value} value={year.value}>
-                        {year.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {pieChartTotalRequests > 0 && (
-                <div className="ml-auto text-lg font-semibold">
-                  Total Requests: {pieChartTotalRequests}
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="col-span-1 lg:col-span-2 shadow-sm">
+            <CardHeader>
+              <CardTitle>Activity Distribution</CardTitle>
+              <CardDescription>
+                Breakdown of {totalRequests} total events recorded in {months.find(m => m.value === selectedMonth)?.label}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center items-center h-[300px]">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : chartData.length > 0 ? (
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={chartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        itemStyle={{ color: '#374151', fontWeight: 600 }}
+                      />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36} 
+                        iconType="circle"
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex flex-col justify-center items-center h-[300px] text-muted-foreground bg-gray-50 rounded-lg">
+                  <Car className="h-12 w-12 mb-2 opacity-20" />
+                  <p>No activity found for this period</p>
                 </div>
               )}
-            </div>
+            </CardContent>
+          </Card>
 
-            {pieChartLoading ? (
-              <div className="flex justify-center items-center h-[300px]">
-                Loading chart data...
+          {/* Quick Summary / Side Panel (Optional) */}
+          <Card className="shadow-sm bg-slate-900 text-white border-none">
+            <CardHeader>
+              <CardTitle className="text-white">Monthly Insights</CardTitle>
+              <CardDescription className="text-slate-400">
+                Key performance indicators
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <div className="text-sm font-medium text-slate-400 mb-1">Conversion Rate (Sold/Created)</div>
+                <div className="text-3xl font-bold">
+                  {stats.created_count > 0 
+                    ? ((stats.sold_count / stats.created_count) * 100).toFixed(1) 
+                    : "0.0"}%
+                </div>
               </div>
-            ) : processedPieChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={processedPieChartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({
-                      status_category,
-                      request_count,
-                    }: {
-                      status_category: string;
-                      request_count: number;
-                    }) =>
-                      `${status_category} (${request_count})`
-                    }
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="request_count"
-                  >
-                    {processedPieChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number, name: string, props: any) => [
-                      `${value} requests`,
-                      props.payload.status_category,
-                    ]}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex justify-center items-center h-[300px] text-muted-foreground">
-                No request data available for the selected filters.
+              
+              <div className="h-px bg-slate-800" />
+              
+              <div>
+                <div className="text-sm font-medium text-slate-400 mb-1">Rejection Rate</div>
+                <div className="text-3xl font-bold">
+                  {totalRequests > 0 
+                    ? ((stats.rejected_count / totalRequests) * 100).toFixed(1) 
+                    : "0.0"}%
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+
+              <div className="h-px bg-slate-800" />
+
+              <div className="bg-slate-800/50 p-4 rounded-lg">
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  These stats reflect specific actions taken in 
+                  <span className="text-white font-semibold"> {months.find(m => m.value === selectedMonth)?.label}</span>. 
+                  A car is counted here only if its status changed during this month.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </DashboardLayout>
   );
