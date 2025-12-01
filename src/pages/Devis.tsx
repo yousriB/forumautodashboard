@@ -304,7 +304,7 @@ export default function Devis() {
 
           ) : (
 
-            <DevisStats requests={requests} />
+            <DevisStats requests={filters.filteredRequests} />
 
           )}
 
