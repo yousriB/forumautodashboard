@@ -216,9 +216,23 @@ export class DevisService {
         try {
             const tableName = type === "standard" ? "devis_requests" : "custom_devis_requests";
 
+            // Sanitize data: remove fields that shouldn't be updated or don't exist in DB
+            const {
+                id: _,
+                created_at,
+                type: __, // Remove the 'type' field which is client-side only
+                processed_at, // These are typically handled by specific actions or triggers
+                completed_at,
+                rejected_at,
+                sold_at,
+                responded_at,
+                responded_by,
+                ...updateData
+            } = data as any;
+
             const { error } = await supabase
                 .from(tableName)
-                .update(data)
+                .update(updateData)
                 .eq("id", id);
 
             if (error) {
