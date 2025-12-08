@@ -290,8 +290,8 @@ export default function Dashboard() {
               <div>
                 <div className="text-sm font-medium text-slate-400 mb-1">Conversion Rate (Sold/Created)</div>
                 <div className="text-3xl font-bold">
-                  {stats.created_count > 0 
-                    ? ((stats.sold_count / stats.created_count) * 100).toFixed(1) 
+                  {totalRequests > 0 
+                    ? ((stats.sold_count / totalRequests) * 100).toFixed(1) 
                     : "0.0"}%
                 </div>
               </div>
