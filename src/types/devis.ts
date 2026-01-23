@@ -18,6 +18,7 @@ export interface BaseDevisRequest {
   sold_at: string | null;
   rejected_at: string | null;
   completed_at: string | null;
+  payment_mode: string | null;
   type?: DevisType;
 }
 

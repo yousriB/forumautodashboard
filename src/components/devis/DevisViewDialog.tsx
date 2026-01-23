@@ -68,7 +68,8 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                   devis request
                 </DialogDescription>
               </div>
-              {!isEditing && (
+              {/*hide the button of edit for all the devis request*/}
+              {/* {!isEditing && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -92,7 +93,7 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                   </svg>
                   Edit
                 </Button>
-              )}
+              )} */}
             </div>
           </DialogHeader>
 
@@ -213,6 +214,32 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                     ) : (
                       <p className="font-medium">
                         {request.note || "No note provided"}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">
+                      Payment Mode
+                    </Label>
+                    {isEditing ? (
+                      <Select
+                        value={editedData.payment_mode || ""}
+                        onValueChange={(value) =>
+                          onInputChange("payment_mode", value)
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select payment mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bank">Bank</SelectItem>
+                          <SelectItem value="leasing">Leasing</SelectItem>
+                          <SelectItem value="comptant">Comptant</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="font-medium">
+                        {request.payment_mode || "No payment mode provided"}
                       </p>
                     )}
                   </div>
