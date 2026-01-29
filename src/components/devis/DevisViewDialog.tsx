@@ -68,8 +68,8 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                   devis request
                 </DialogDescription>
               </div>
-              {/*hide the button of edit for all the devis request*/}
-              {/* {!isEditing && (
+              {/*not hide the button of edit for all the devis request*/}
+              {!isEditing && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -93,7 +93,7 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                   </svg>
                   Edit
                 </Button>
-              )} */}
+              )}
             </div>
           </DialogHeader>
 
