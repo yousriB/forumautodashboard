@@ -150,7 +150,7 @@ export default function Devis() {
 
       if (!request) return;
 
-     
+
 
       const type = request.type || "standard";
 
@@ -392,11 +392,11 @@ export default function Devis() {
 
                       ? {
 
-                          label: "Clear Filters",
+                        label: "Clear Filters",
 
-                          onClick: filters.clearFilters,
+                        onClick: filters.clearFilters,
 
-                        }
+                      }
 
                       : undefined
 

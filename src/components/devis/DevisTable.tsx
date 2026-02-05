@@ -90,7 +90,7 @@ export const DevisTable: React.FC<DevisTableProps> = React.memo(
                   <DevisRow
                     key={request.id}
                     request={request}
-                    type={request.type || (type === 'all' ? 'standard' : type as DevisType)}
+                    type={request.type}
                     loading={loading}
                     onView={onView}
                     onStatusChange={onStatusChange}
@@ -129,11 +129,10 @@ export const DevisTable: React.FC<DevisTableProps> = React.memo(
                           <PaginationLink
                             isActive={currentPage === pageNum}
                             onClick={() => onPageChange(pageNum as number)}
-                            className={`cursor-pointer ${
-                              currentPage === pageNum
+                            className={`cursor-pointer ${currentPage === pageNum
                                 ? "bg-primary text-primary-foreground hover:bg-primary/90"
                                 : "hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
-                            } rounded-md`}
+                              } rounded-md`}
                           >
                             {pageNum}
                           </PaginationLink>

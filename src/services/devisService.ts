@@ -1,8 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
 import {
     DevisRequest,
-    StandardDevisRequest,
-    CustomDevisRequest,
     DevisStatus,
     DevisType,
     DevisResponse,
@@ -64,8 +62,14 @@ export class DevisService {
                 throw error;
             }
 
-            // Add type property to each request
-            const typedData = (data || []).map(item => ({ ...item, type }));
+            // Normalize data
+            const typedData: DevisRequest[] = (data || []).map(item => ({
+                ...item,
+                type: type as DevisType,
+                // Explicitly set missing fields to undefined/null based on type
+                car_price: type === 'standard' ? item.car_price : undefined,
+                region: type === 'custom' ? item.region : undefined,
+            }));
 
             return {
                 data: typedData,

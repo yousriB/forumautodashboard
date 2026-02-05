@@ -70,15 +70,15 @@ export const DevisRow: React.FC<DevisRowProps> = React.memo(
                 <Car className="h-3 w-3" />
                 {request.car_brand} {request.car_model}
               </div>
-              {"car_price" in request && (
+              {"car_price" in request && request.car_price && (
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                   <DollarSign className="h-3 w-3" />
                   {request.car_price}
                 </div>
               )}
-              {"region" in request && (
+              {"region" in request && request.region && (
                 <div className="text-xs text-muted-foreground">
-                  {request.region || "No region specified"}
+                  {request.region}
                 </div>
               )}
             </div>
@@ -87,7 +87,7 @@ export const DevisRow: React.FC<DevisRowProps> = React.memo(
 
         <TableCell className="hidden md:table-cell">
           <div className="flex items-center gap-2">
-            <Car className="h-4 w-4 text-muted-foreground" />
+            {/* <Car className="h-4 w-4 text-muted-foreground" /> */}
             <div>
               <div className="font-medium">
                 {request.car_brand} {request.car_model}
@@ -101,18 +101,26 @@ export const DevisRow: React.FC<DevisRowProps> = React.memo(
 
         {"car_price" in request && (
           <TableCell className="hidden lg:table-cell">
-            <div className="flex items-center gap-1">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{request.car_price}</span>
-            </div>
+            {request.car_price ? (
+              <div className="flex items-center gap-1">
+                {/* <DollarSign className="h-4 w-4 text-muted-foreground" /> */}
+                <span className="font-medium">{request.car_price}</span>
+              </div>
+            ) : (
+              <span className="text-muted-foreground">-</span>
+            )}
           </TableCell>
         )}
 
         {"region" in request && (
           <TableCell className="hidden lg:table-cell">
-            <span className="font-medium">
-              {request.region || "No region specified"}
-            </span>
+            {request.region ? (
+              <span className="font-medium">
+                {request.region}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">-</span>
+            )}
           </TableCell>
         )}
 

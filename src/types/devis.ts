@@ -1,17 +1,22 @@
-// Base interface for all devis requests
-export interface BaseDevisRequest {
+export type DevisType = "standard" | "custom";
+
+export interface DevisRequest {
   id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone_number: string;
-  cin_or_nf: string;
-  car_brand: string;
-  car_model: string;
-  car_version: string;
+  type: DevisType;
+
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone_number: string | null;
+  cin_or_nf: string | null;
+  car_brand: string | null;
+  car_model: string | null;
+  car_version: string | null;
+  status: DevisStatus;
   created_at: string;
   note: string | null;
-  status: DevisStatus;
+
+  // Response/Processing fields
   responded_by: string | null;
   responded_at: string | null;
   processed_at: string | null;
@@ -19,25 +24,16 @@ export interface BaseDevisRequest {
   rejected_at: string | null;
   completed_at: string | null;
   payment_mode: string | null;
-  type?: DevisType;
-}
 
-// Standard devis request (with price)
-export interface StandardDevisRequest extends BaseDevisRequest {
-  car_price: string;
-}
+  // Standard specific
+  car_price?: string | null;
 
-// Custom devis request (with region)
-export interface CustomDevisRequest extends BaseDevisRequest {
-  region: string | null;
+  // Custom specific
+  region?: string | null;
 }
-
-// Union type for all devis requests
-export type DevisRequest = StandardDevisRequest | CustomDevisRequest;
 
 // Status types
 export type DevisStatus = "pending" | "processing" | "completed" | "rejected" | "sold";
-export type DevisType = "standard" | "custom";
 
 // Filter options
 export interface FilterOptions {
