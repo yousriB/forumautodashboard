@@ -17,7 +17,7 @@ import { useUser } from "@/context/UserContext";
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["admin"] },
   { name: "Proforma requests", href: "/devis", icon: FileText, roles: ["admin", "sales"] },
-  { name: "Appointments", href: "/appointments", icon: Calendar, roles: ["admin", "support"] },
+  // { name: "Appointments", href: "/appointments", icon: Calendar, roles: ["admin", "support"] },
   { name: "Messages", href: "/messages", icon: MessageCircle, roles: ["admin", "support"] },
   { name: "Test Drive", href: "/testdrive", icon: CarFrontIcon, roles: ["admin", "sales"] },
   { name: "Users", href: "/users", icon: Users, roles: ["admin"] },
