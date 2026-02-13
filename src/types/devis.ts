@@ -1,6 +1,7 @@
 export type DevisType = "standard" | "custom";
 
 export interface DevisRequest {
+  is_first_sale: boolean;
   id: string;
   type: DevisType;
 

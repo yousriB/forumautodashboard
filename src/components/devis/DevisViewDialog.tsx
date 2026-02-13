@@ -255,6 +255,16 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                       </p>
                     </div>
                   )}
+
+                  <div>
+                    <Label className="text-sm text-muted-foreground">
+                       Premier achat automobile 
+                    </Label>
+                 
+                      <p className="font-medium flex items-center gap-2">
+                        {request.is_first_sale ? "Yes" : "No"}
+                      </p>
+                  </div>
                 </div>
               </div>
 
