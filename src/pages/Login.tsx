@@ -7,16 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUser } from "@/context/UserContext";
 import { supabase } from "@/lib/supabaseClient";
-import bcrypt from "bcryptjs";
-
+import { logSecurityEvent } from "@/lib/security-logger";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+
   const { setUser } = useUser();
+  const navigate    = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,52 +24,79 @@ export default function Login() {
     setError(null);
 
     try {
-      // 🔹 1. Get user by email only
-      const { data: users, error: fetchError } = await supabase
+      // ── 1. Authenticate via Supabase Auth ─────────────────────────────────
+      const { data: authData, error: authError } =
+        await supabase.auth.signInWithPassword({ email, password });
+
+      if (authError || !authData.user) {
+        // ── Log failed attempt ───────────────────────────────────────────────
+        await logSecurityEvent({
+          event_type:  'login_attempt',
+          severity:    'medium',
+          status_code: 401,
+          endpoint:    '/auth/login',
+          method:      'POST',
+          metadata: {
+            email,
+            error: authError?.message ?? 'Unknown error',
+          },
+        });
+
+        setError("Email ou mot de passe incorrect");
+        setLoading(false);
+        return;
+      }
+
+      // ── 2. Fetch role + brand from the users profile table ────────────────
+      const { data: profile, error: profileError } = await supabase
         .from("users")
-        .select("*")
-        .eq("email", email)
-        .limit(1);
+        .select("id, email, role, brand")
+        .or(`id.eq.${authData.user.id},email.eq.${email}`)
+        .maybeSingle();
 
-      if (fetchError) throw fetchError;
+      if (profileError) {
+        console.error("[Login] Profile fetch error:", profileError.message);
+      }
 
-      if (!users || users.length === 0) {
-        setError("Email ou mot de passe incorrect");
+      if (!profile?.role) {
+        // Auth succeeded but no profile row found — sign out and report
+        await supabase.auth.signOut();
+        setError("Profil introuvable. Contactez l'administrateur.");
         setLoading(false);
         return;
       }
 
-      const user = users[0];
-
-      // 🔹 2. Compare password with bcrypt
-      const isValidPassword = await bcrypt.compare(password, user.password);
-
-      if (!isValidPassword) {
-        setError("Email ou mot de passe incorrect");
-        setLoading(false);
-        return;
-      }
-
-      // 🔹 3. Save user info
-      setUser({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        brand: user.brand,
+      // ── 3. Log successful attempt ─────────────────────────────────────────
+      await logSecurityEvent({
+        event_type:  'login_attempt',
+        severity:    'low',
+        status_code: 200,
+        user_id:     authData.user.id,
+        endpoint:    '/auth/login',
+        method:      'POST',
+        metadata:    { email },
       });
 
-      // 🔹 4. Redirect by role
-      if (user.role === "support") {
+      // ── 4. Set user in context ────────────────────────────────────────────
+      setUser({
+        id:    authData.user.id,
+        email: authData.user.email ?? email,
+        role:  profile.role,
+        brand: profile.brand ?? null,
+      });
+
+      // ── 5. Redirect by role ───────────────────────────────────────────────
+      if (profile.role === "support") {
         navigate("/appointments");
-      } else if (user.role === "admin") {
+      } else if (profile.role === "admin") {
         navigate("/dashboard");
-      } else if (user.role === "sales") {
+      } else if (profile.role === "sales") {
         navigate("/devis");
       } else {
         setError("Rôle inconnu. Veuillez contacter l'administrateur.");
       }
-    } catch (err: any) {
-      console.error(err);
+    } catch (err: unknown) {
+      console.error("[Login] Unexpected error:", err);
       setError("Une erreur est survenue. Veuillez réessayer.");
     }
 
@@ -111,7 +138,7 @@ export default function Login() {
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password">Mot de passe</Label>
                 <div className="relative">
@@ -128,15 +155,17 @@ export default function Login() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full btn-primary font-medium">
-                Se connecter
+              <Button
+                type="submit"
+                className="w-full btn-primary font-medium"
+                disabled={loading}
+              >
+                {loading ? "Connexion..." : "Se connecter"}
               </Button>
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-red-500 text-center">
-                {error}
-              </p>
+              <p className="text-sm text-red-500 text-center">{error}</p>
             </div>
           </CardContent>
         </Card>

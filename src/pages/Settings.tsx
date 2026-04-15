@@ -8,7 +8,6 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { useUser } from '@/context/UserContext';
-import bcrypt from 'bcryptjs';
 
 type UserProfile = {
   id: string;
@@ -67,11 +66,19 @@ const Settings = () => {
     }
 
     try {
-      // Update password in users table
-      const { error } = await supabase.from('users').update({ password: bcrypt.hashSync(newPassword, 10) }).eq('email', user.email);
+      // 1. Re-verify current password via Supabase Auth
+      const { error: reAuthError } = await supabase.auth.signInWithPassword({
+        email:    user?.email ?? '',
+        password: currentPassword,
+      });
 
-      
-     
+      if (reAuthError) {
+        setPasswordError('Mot de passe actuel incorrect');
+        return;
+      }
+
+      // 2. Update password via Supabase Auth (no bcrypt needed — Auth handles hashing)
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
 
       if (error) throw error;
 
