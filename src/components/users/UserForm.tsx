@@ -136,7 +136,7 @@ export const UserForm = ({
             <Label>Brand</Label>
             <Select
               onValueChange={(value) => setValue('brand', value)}
-              defaultValue={defaultValues.brand}
+              defaultValue={defaultValues?.brand}
               disabled={isSubmitting}
             >
               <SelectTrigger>

@@ -1,5 +1,6 @@
 import { User, UserFormData } from '@/types/user.types';
 import { supabase } from '@/lib/supabaseClient';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 // ─── User Service ─────────────────────────────────────────────────────────────
 // After the Supabase Auth migration:
@@ -33,15 +34,18 @@ export const userService = {
   //     (or the new user won't be active until they confirm their email)
 
   async createUser(userData: Omit<UserFormData, 'id'>): Promise<User> {
-    // 1. Create the Auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email:    userData.email,
-      password: userData.password,
-      options: {
-        data: {
-          role:  userData.role,
-          brand: userData.brand || null,
-        },
+    // Use the admin client so the current admin session is never touched.
+    // auth.admin.createUser() creates the auth account server-side without
+    // signing the new user in on the current browser.
+
+    // 1. Create the Auth user via admin API
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email:             userData.email,
+      password:          userData.password,
+      email_confirm:     true,   // skip the confirmation email
+      user_metadata: {
+        role:  userData.role,
+        brand: userData.brand || null,
       },
     });
 
@@ -50,11 +54,12 @@ export const userService = {
       throw new Error(authError?.message ?? 'Failed to create Auth user');
     }
 
-    // 2. Insert profile row using the same ID as the Auth user
+    // 2. Insert profile row using the same ID as the Auth user.
+    //    The `users` table must NOT have a password column.
     const { data: profile, error: profileError } = await supabase
       .from('users')
       .insert([{
-        id:    authData.user.id,   // keep ids in sync
+        id:    authData.user.id,
         email: userData.email,
         role:  userData.role,
         brand: userData.brand || null,
@@ -64,7 +69,7 @@ export const userService = {
 
     if (profileError) {
       console.error('Error creating user profile:', profileError.message);
-      throw new Error('Failed to create user profile');
+      throw new Error('Failed to create user profile: ' + profileError.message);
     }
 
     return profile;
@@ -96,19 +101,26 @@ export const userService = {
   },
 
   // ── Delete ──────────────────────────────────────────────────────────────────
-  // Removes the profile row from the public table.
-  // The corresponding Auth account must be deleted via the Supabase Dashboard
-  // or a service-role Edge Function (client-side anon key cannot delete auth users).
+  // Deletes the auth account (auth.users) AND the profile row (public.users).
 
   async deleteUser(id: string): Promise<void> {
-    const { error } = await supabase
+    // 1. Delete from Supabase Auth using the admin client
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
+
+    if (authError) {
+      console.error('Error deleting Auth user:', authError.message);
+      throw new Error('Failed to delete auth user: ' + authError.message);
+    }
+
+    // 2. Delete the profile row (may already be gone if a DB cascade is set up)
+    const { error: profileError } = await supabase
       .from('users')
       .delete()
       .eq('id', id);
 
-    if (error) {
-      console.error('Error deleting user profile:', error.message);
-      throw new Error('Failed to delete user');
+    if (profileError) {
+      console.error('Error deleting user profile:', profileError.message);
+      throw new Error('Failed to delete user profile: ' + profileError.message);
     }
   },
 };
