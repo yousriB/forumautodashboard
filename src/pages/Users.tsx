@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Filter, Plus, Eye, Edit, Trash2, User as UserIcon } from "lucide-react";
 import { useUsers } from "@/hooks/useUsers";
 import { useUserMutations } from "@/hooks/useUserMutations";
+import { useDebounce } from "@/hooks/useDebounce";
 import { UserTable } from "@/components/users/UserTable";
 import { ViewUserDialog, EditUserDialog, DeleteUserDialog, CreateUserDialog } from "@/components/users/UserDialogs";
 import { UserFormData } from "@/components/users/UserForm";
@@ -20,23 +21,32 @@ export default function Users() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   
-  // Use custom hooks
-  const { users, loading, error, refetch } = useUsers();
-  const { 
-    createUser, 
-    updateUser, 
-    deleteUser, 
-    loading: mutationLoading, 
-    error: mutationError 
+  // Use custom hooks. We no longer call `refetch()` manually after every
+  // mutation — useUserMutations invalidates the ['users'] query, and React
+  // Query refetches lazily only if this page is still mounted.
+  const { users, loading, error } = useUsers();
+  const {
+    createUser,
+    updateUser,
+    deleteUser,
+    loading: mutationLoading,
+    error: mutationError,
   } = useUserMutations();
 
-  // Filter users based on search and role
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       (user.brand && user.brand.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    return matchesSearch && matchesRole;
-  });
+  // Debounce the search input + memoise the filter — typing now no longer
+  // re-runs the filter on every keystroke, and the filtered array is stable
+  // between renders for the table to reconcile cheaply.
+  const debouncedSearchTerm = useDebounce(searchTerm, 250);
+  const filteredUsers = useMemo(() => {
+    const q = debouncedSearchTerm.toLowerCase();
+    return users.filter((user) => {
+      const matchesSearch =
+        user.email.toLowerCase().includes(q) ||
+        (user.brand && user.brand.toLowerCase().includes(q));
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      return matchesSearch && matchesRole;
+    });
+  }, [users, debouncedSearchTerm, roleFilter]);
 
   // Handlers
   const handleViewUser = (user: User) => {
@@ -65,7 +75,6 @@ export default function Users() {
       };
       
       await createUser(userData);
-      await refetch();
       setIsCreateDialogOpen(false);
     } catch (error) {
       console.error('Error creating user:', error);
@@ -88,7 +97,6 @@ export default function Users() {
       }
       
       await updateUser(selectedUser.id, updateData);
-      await refetch();
       setIsEditDialogOpen(false);
       setSelectedUser(null);
     } catch (error) {
@@ -101,7 +109,6 @@ export default function Users() {
     
     try {
       await deleteUser(selectedUser.id);
-      await refetch();
       setIsDeleteDialogOpen(false);
       setSelectedUser(null);
     } catch (error) {

@@ -1,6 +1,8 @@
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
+import { queryKeys } from '@/lib/queryKeys';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Mail, Search, Send, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -17,10 +19,7 @@ type Subscription = {
 };
 
 const Newsletters = () => {
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
@@ -31,27 +30,24 @@ const Newsletters = () => {
   });
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchSubscriptions();
-  }, []);
-
-  const fetchSubscriptions = async () => {
-    try {
-      setLoading(true);
+  const {
+    data: subscriptions = [],
+    isLoading: loading,
+    error: queryError,
+  } = useQuery<Subscription[]>({
+    queryKey: queryKeys.newsletters.all,
+    queryFn: async ({ signal }) => {
       const { data, error } = await supabase
         .from('newsletter_subscriptions')
         .select('*')
-        .order('created_at', { ascending: false });
-
+        .order('created_at', { ascending: false })
+        .abortSignal(signal);
       if (error) throw error;
-      setSubscriptions(data || []);
-    } catch (err) {
-      console.error('Error fetching subscriptions:', err);
-      setError('Failed to load subscriptions');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data ?? [];
+    },
+  });
+
+  const error = queryError instanceof Error ? queryError.message : null;
 
   const filteredSubscriptions = subscriptions.filter(subscription =>
     subscription.email.toLowerCase().includes(searchTerm.toLowerCase())

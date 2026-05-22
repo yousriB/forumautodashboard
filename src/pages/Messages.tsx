@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -27,17 +27,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Filter, Eye, MessageSquare, Clock, CheckCircle, Mail, Reply, CheckCheck } from "lucide-react";
+import {
+  Search,
+  Filter,
+  Eye,
+  MessageSquare,
+  Clock,
+  CheckCircle,
+  Mail,
+  CheckCheck,
+} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { useDebounce } from "@/hooks/useDebounce";
+import { queryKeys } from "@/lib/queryKeys";
+import { applyChange, uniqueChannelName } from "@/lib/realtimeHelpers";
 
-// Types based on your contact_messages schema
 interface ContactMessage {
   id: string;
   name: string;
   email: string;
   message: string;
   created_at: string;
-  status: 'unread' | 'read' | 'responded';
+  status: "unread" | "read" | "responded";
 }
 
 const statusColors = {
@@ -52,72 +63,52 @@ const statusIcons = {
   responded: CheckCircle,
 };
 
+async function fetchMessages(signal?: AbortSignal): Promise<ContactMessage[]> {
+  let query = supabase
+    .from("contact_messages")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (signal) query = query.abortSignal(signal);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data as ContactMessage[]) ?? [];
+}
+
 export default function Messages() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ContactMessage[]>([]);
 
-  const handleRespond = async (messageId: string) => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('contact_messages')
-        .update({ status: 'responded' })
-        .eq('id', messageId);
+  // Debounce the search input — even though filtering is in-memory today,
+  // this keeps re-renders cheap and is the right shape if you ever push
+  // search to the server.
+  const debouncedSearch = useDebounce(searchTerm, 250);
 
-      if (error) {
-        console.error('Error updating message status:', error);
-        setError('Failed to update message status');
-      } else {
-        fetchMessages();
-      }
-    } catch (err) {
-      console.error('Error:', err);
-      setError('An unexpected error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: messages = [],
+    isLoading: loading,
+    error: queryError,
+  } = useQuery<ContactMessage[]>({
+    queryKey: queryKeys.messages.all,
+    queryFn: ({ signal }) => fetchMessages(signal),
+  });
 
-  // Fetch messages from Supabase
-  const fetchMessages = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('contact_messages')
-        .select('*')
-        .order('created_at', { ascending: false });
+  const error = queryError instanceof Error ? queryError.message : null;
 
-      if (error) {
-        console.error('Error fetching messages:', error);
-        setError('Failed to load messages');
-      } else {
-        setMessages(data || []);
-      }
-    } catch (err) {
-      console.error('Error:', err);
-      setError('An unexpected error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Initial fetch
+  // Realtime: patch the cache directly rather than refetching the whole table.
   useEffect(() => {
-    fetchMessages();
-
-    // Optional: Real-time updates
+    const channelName = uniqueChannelName("messages-list");
     const channel = supabase
-      .channel('contact_messages')
+      .channel(channelName)
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'contact_messages' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "contact_messages" },
         (payload) => {
-          console.log('Change received!', payload);
-          fetchMessages(); // Refetch on any change
+          queryClient.setQueryData<ContactMessage[]>(
+            queryKeys.messages.all,
+            (old) => applyChange(old, payload as never)
+          );
         }
       )
       .subscribe();
@@ -125,43 +116,85 @@ export default function Messages() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [queryClient]);
 
-
-  // Filter messages based on search and status
-  const filteredMessages = messages.filter((message) => {
-    const matchesSearch = 
-      message.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.message.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || message.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  const respondMutation = useMutation<
+    void,
+    Error,
+    string,
+    { previous: ContactMessage[] | undefined }
+  >({
+    mutationFn: async (messageId) => {
+      const { error: updErr } = await supabase
+        .from("contact_messages")
+        .update({ status: "responded" })
+        .eq("id", messageId);
+      if (updErr) throw updErr;
+    },
+    onMutate: async (messageId) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.messages.all });
+      const previous = queryClient.getQueryData<ContactMessage[]>(queryKeys.messages.all);
+      queryClient.setQueryData<ContactMessage[]>(queryKeys.messages.all, (old) =>
+        (old ?? []).map((m) => (m.id === messageId ? { ...m, status: "responded" } : m))
+      );
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous)
+        queryClient.setQueryData(queryKeys.messages.all, ctx.previous);
+    },
   });
 
-  // Mark message as read (optimistic + sync with Supabase)
-  const markAsRead = async (messageId: string) => {
-    // Optimistic UI update
-    setMessages(prev => 
-      prev.map(msg => 
-        msg.id === messageId && msg.status === 'unread' 
-          ? { ...msg, status: 'read' } 
-          : msg
-      )
-    );
+  const markAsReadMutation = useMutation<
+    void,
+    Error,
+    string,
+    { previous: ContactMessage[] | undefined }
+  >({
+    mutationFn: async (messageId) => {
+      const { error: updErr } = await supabase
+        .from("contact_messages")
+        .update({ status: "read" })
+        .eq("id", messageId);
+      if (updErr) throw updErr;
+    },
+    onMutate: async (messageId) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.messages.all });
+      const previous = queryClient.getQueryData<ContactMessage[]>(queryKeys.messages.all);
+      queryClient.setQueryData<ContactMessage[]>(queryKeys.messages.all, (old) =>
+        (old ?? []).map((m) =>
+          m.id === messageId && m.status === "unread" ? { ...m, status: "read" } : m
+        )
+      );
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous)
+        queryClient.setQueryData(queryKeys.messages.all, ctx.previous);
+    },
+  });
 
-    // Update in Supabase
-    const { error } = await supabase
-      .from('contact_messages')
-      .update({ status: 'read' })
-      .eq('id', messageId);
-
-    if (error) {
-      console.error('Failed to update message status:', error);
-      // Rollback by refetching
-      fetchMessages();
-    }
+  const handleRespond = (messageId: string) => {
+    if (respondMutation.isPending) return;
+    respondMutation.mutate(messageId);
   };
 
+  const markAsRead = (messageId: string) => {
+    if (markAsReadMutation.isPending) return;
+    markAsReadMutation.mutate(messageId);
+  };
+
+  const filteredMessages = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    return messages.filter((message) => {
+      const matchesSearch =
+        message.name.toLowerCase().includes(q) ||
+        message.email.toLowerCase().includes(q) ||
+        message.message.toLowerCase().includes(q);
+      const matchesStatus = statusFilter === "all" || message.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [messages, debouncedSearch, statusFilter]);
 
   return (
     <DashboardLayout>
@@ -177,7 +210,7 @@ export default function Messages() {
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="flex items-center gap-1 text-xs sm:text-sm">
               <MessageSquare className="h-3 w-3" />
-              {messages.filter(m => m.status === 'unread').length} Unread
+              {messages.filter((m) => m.status === "unread").length} Unread
             </Badge>
           </div>
         </div>
@@ -217,9 +250,6 @@ export default function Messages() {
         {error && (
           <div className="dashboard-card py-8 text-center">
             <p className="text-destructive">{error}</p>
-            <Button variant="outline" size="sm" onClick={fetchMessages} className="mt-2">
-              Retry
-            </Button>
           </div>
         )}
 
@@ -247,13 +277,19 @@ export default function Messages() {
                   {filteredMessages.map((message) => {
                     const StatusIcon = statusIcons[message.status];
                     return (
-                      <TableRow 
-                        key={message.id} 
-                        className={`table-row-hover ${message.status === 'unread' ? 'bg-secondary/30' : ''}`}
+                      <TableRow
+                        key={message.id}
+                        className={`table-row-hover ${
+                          message.status === "unread" ? "bg-secondary/30" : ""
+                        }`}
                       >
                         <TableCell>
                           <div>
-                            <div className={`font-medium ${message.status === 'unread' ? 'font-bold' : ''} text-foreground`}>
+                            <div
+                              className={`font-medium ${
+                                message.status === "unread" ? "font-bold" : ""
+                              } text-foreground`}
+                            >
                               {message.name}
                             </div>
                             <div className="text-sm text-muted-foreground flex items-center gap-1">
@@ -262,10 +298,9 @@ export default function Messages() {
                             </div>
                             <div className="md:hidden mt-1">
                               <p className="text-xs text-muted-foreground line-clamp-2">
-                                {message.message.length > 60 
-                                  ? `${message.message.substring(0, 60)}...` 
-                                  : message.message
-                                }
+                                {message.message.length > 60
+                                  ? `${message.message.substring(0, 60)}...`
+                                  : message.message}
                               </p>
                             </div>
                           </div>
@@ -273,10 +308,9 @@ export default function Messages() {
                         <TableCell className="hidden md:table-cell">
                           <div className="max-w-md">
                             <p className="text-sm text-foreground line-clamp-2">
-                              {message.message.length > 100 
-                                ? `${message.message.substring(0, 100)}...` 
-                                : message.message
-                              }
+                              {message.message.length > 100
+                                ? `${message.message.substring(0, 100)}...`
+                                : message.message}
                             </p>
                           </div>
                         </TableCell>
@@ -284,9 +318,9 @@ export default function Messages() {
                           <div className="text-sm">
                             <div>{new Date(message.created_at).toLocaleDateString()}</div>
                             <div className="text-xs opacity-75">
-                              {new Date(message.created_at).toLocaleTimeString([], { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
+                              {new Date(message.created_at).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
                               })}
                             </div>
                           </div>
@@ -301,12 +335,12 @@ export default function Messages() {
                           <div className="flex items-center justify-end gap-2">
                             <Dialog>
                               <DialogTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => {
                                     setSelectedMessage(message);
-                                    if (message.status === 'unread') {
+                                    if (message.status === "unread") {
                                       markAsRead(message.id);
                                     }
                                   }}
@@ -328,20 +362,31 @@ export default function Messages() {
                                       {message.email}
                                     </div>
                                   </div>
-                                  
+
                                   <div className="p-4 bg-secondary rounded-lg">
-                                    <p className="text-foreground whitespace-pre-wrap">{message.message}</p>
+                                    <p className="text-foreground whitespace-pre-wrap">
+                                      {message.message}
+                                    </p>
                                   </div>
 
-                                  {message.status !== 'responded' && (
+                                  {message.status !== "responded" && (
                                     <div className="space-y-3">
                                       <div className="flex gap-2">
-                                        <Button onClick={() => handleRespond(message.id)} variant="outline">
+                                        <Button
+                                          onClick={() => handleRespond(message.id)}
+                                          variant="outline"
+                                          disabled={respondMutation.isPending}
+                                        >
                                           <CheckCheck className="h-4 w-4 mr-1" />
-                                          Respond
+                                          {respondMutation.isPending
+                                            ? "Marking..."
+                                            : "Respond"}
                                         </Button>
                                         <Button>
-                                          <a href={`mailto:${message.email}`} className="flex items-center gap-1">
+                                          <a
+                                            href={`mailto:${message.email}`}
+                                            className="flex items-center gap-1"
+                                          >
                                             <Mail className="h-4 w-4 mr-1" />
                                             Open in Email Client
                                           </a>

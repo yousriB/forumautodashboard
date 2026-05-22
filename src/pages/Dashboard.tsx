@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import {
@@ -27,6 +28,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
+import { queryKeys } from "@/lib/queryKeys";
 import {
   Select,
   SelectContent,
@@ -34,6 +36,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+type MonthlyCarStats = {
+  created_count: number;
+  processing_count: number;
+  completed_count: number;
+  sold_count: number;
+  rejected_count: number;
+};
+
+const EMPTY_STATS: MonthlyCarStats = {
+  created_count: 0,
+  processing_count: 0,
+  completed_count: 0,
+  sold_count: 0,
+  rejected_count: 0,
+};
 
 // Color Palette mapping for statuses
 const STATUS_COLORS = {
@@ -45,22 +63,11 @@ const STATUS_COLORS = {
 };
 
 export default function Dashboard() {
-  const [loading, setLoading] = useState(true);
-
   // Default to current date
   const currentDate = new Date();
   const [selectedBrand, setSelectedBrand] = useState("All");
   const [selectedMonth, setSelectedMonth] = useState((currentDate.getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
-
-  // Data State
-  const [stats, setStats] = useState({
-    created_count: 0,
-    processing_count: 0,
-    completed_count: 0,
-    sold_count: 0,
-    rejected_count: 0,
-  });
 
   const brands = [
     "ISUZU", "CHEVROLET", "CHERY", "GREAT WALL", "HAVAL", "GAC", "TOYOTA",
@@ -84,40 +91,24 @@ export default function Dashboard() {
     }));
   }, []);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
-      
-      try {
-        const { data, error } = await supabase.rpc("get_monthly_car_stats", {
-          target_year: parseInt(selectedYear),
-          target_month: parseInt(selectedMonth),
-          target_brand: selectedBrand,
-        });
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          setStats(data[0]);
-        } else {
-          // Reset if no data returned
-          setStats({
-            created_count: 0,
-            processing_count: 0,
-            completed_count: 0,
-            sold_count: 0,
-            rejected_count: 0,
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching car stats:", error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, [selectedBrand, selectedMonth, selectedYear]);
+  // React Query handles dedup + caching: switching filters back and forth
+  // re-uses the cached result within the 30s staleTime window instead of
+  // refetching. The previous version refetched on every dep change.
+  const { data: stats = EMPTY_STATS, isLoading: loading } = useQuery<MonthlyCarStats>({
+    queryKey: queryKeys.dashboard.monthlyCarStats(selectedYear, selectedMonth, selectedBrand),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_monthly_car_stats", {
+        target_year: parseInt(selectedYear),
+        target_month: parseInt(selectedMonth),
+        target_brand: selectedBrand,
+      });
+      if (error) throw error;
+      return (data && data.length > 0 ? data[0] : EMPTY_STATS) as MonthlyCarStats;
+    },
+    // Keep the previous result on screen while the new filter loads so the
+    // chart doesn't flash an empty state.
+    placeholderData: (prev) => prev,
+  });
 
   // Prepare Chart Data
   const chartData = [

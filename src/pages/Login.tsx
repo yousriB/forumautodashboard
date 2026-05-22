@@ -48,6 +48,11 @@ export default function Login() {
       }
 
       // ── 2. Fetch role + brand from the users profile table ────────────────
+      // Previously this duplicated the profile fetch that UserContext already
+      // performs in its onAuthStateChange listener. We still need the role
+      // here for the post-login redirect, so we fetch ONCE and pass it to
+      // UserContext via setUser — the context's cache then short-circuits
+      // its own fetch when the listener fires for the same auth id.
       const { data: profile, error: profileError } = await supabase
         .from("users")
         .select("id, email, role, brand")
@@ -77,7 +82,7 @@ export default function Login() {
         metadata:    { email },
       });
 
-      // ── 4. Set user in context ────────────────────────────────────────────
+      // ── 4. Set user in context (warms UserContext's profile cache) ────────
       setUser({
         id:    authData.user.id,
         email: authData.user.email ?? email,

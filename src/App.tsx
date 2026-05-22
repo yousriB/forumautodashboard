@@ -16,7 +16,32 @@ import Messages from "./pages/Messages";
 import Devis from "./pages/Devis";
 import Newsletters from "./pages/Newsletters";
 
-const queryClient = new QueryClient();
+// QueryClient with sensible defaults for a low-write, multi-tab dashboard.
+//   - staleTime: dedup repeated reads within a 30s window so navigation
+//     between pages doesn't re-fetch every dataset.
+//   - gcTime: keep cached data around for 5 minutes so back/forward feels instant.
+//   - refetchOnWindowFocus: OFF globally; opt in per-query if you want it.
+//   - retry: never retry 4xx (they aren't transient and look like brute-force
+//     attempts to the security log); at most 1 retry for 5xx/network errors.
+//   - mutations: never auto-retry; the user must explicitly resubmit.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: "always",
+      retry: (failureCount, error) => {
+        const status = (error as { status?: number })?.status;
+        if (status && status >= 400 && status < 500) return false;
+        return failureCount < 1;
+      },
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

@@ -1,69 +1,95 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useUser } from '@/context/UserContext';
-import { DevisService } from '@/services/devisService';
-import { DevisRequest, DevisType, FilterOptions } from '@/types/devis';
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useUser } from "@/context/UserContext";
+import { DevisService } from "@/services/devisService";
+import { DevisRequest, DevisResponse, DevisType } from "@/types/devis";
+import { queryKeys } from "@/lib/queryKeys";
 
-export const useDevisRequests = (type: DevisType | 'all') => {
-    const [requests, setRequests] = useState<DevisRequest[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const { user } = useUser();
+/**
+ * Fetch + manage devis requests via React Query.
+ *
+ * What this hook fixes vs. the old hand-rolled version:
+ *   - In-flight dedup: two components mounting with the same key share one
+ *     fetch instead of issuing two Supabase requests.
+ *   - 30s staleTime (from the global QueryClient defaults) means navigating
+ *     Devis → Settings → Devis re-uses the cache instead of refetching.
+ *   - Query is cancelled on unmount via the AbortSignal threaded into the
+ *     service, so a navigation away no longer counts as an in-flight request
+ *     the security logger sees.
+ *   - The cache key depends only on primitive user fields, so a new `user`
+ *     object reference from TOKEN_REFRESHED no longer invalidates the cache.
+ */
+export const useDevisRequests = (type: DevisType | "all") => {
+  const { user } = useUser();
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.devis.list(type, user?.role, user?.brand);
 
-    const fetchRequests = useCallback(async (filters?: FilterOptions) => {
-        if (!user) return;
+  const query = useQuery<DevisResponse>({
+    queryKey,
+    queryFn: ({ signal }) =>
+      DevisService.fetchRequests(type, undefined, user?.role, user?.brand, signal),
+    enabled: !!user,
+  });
 
-        try {
-            setLoading(true);
-            setError(null);
-
-            const response = await DevisService.fetchRequests(
-                type,
-                filters,
-                user.role,
-                user.brand
-            );
-
-            if (response.error) {
-                setError(response.error);
-            } else {
-                setRequests(response.data);
+  // Optimistic local mutators — these patch the cache directly so the UI
+  // updates without a refetch. Each mutation hook layered on top of this
+  // calls one of these in onMutate / onSuccess.
+  const updateRequest = useCallback(
+    (id: string, patch: Partial<DevisRequest>) => {
+      queryClient.setQueryData<DevisResponse>(queryKey, (old) =>
+        old
+          ? {
+              ...old,
+              data: old.data.map((r) => (r.id === id ? { ...r, ...patch } : r)),
             }
-        } catch (err) {
-            console.error(`Error fetching ${type} devis requests:`, err);
-            setError('Failed to load requests');
-        } finally {
-            setLoading(false);
-        }
-    }, [type, user]);
+          : old
+      );
+    },
+    [queryClient, queryKey]
+  );
 
-    const updateRequest = useCallback((id: string, updatedRequest: Partial<DevisRequest>) => {
-        setRequests(prev =>
-            prev.map(req =>
-                req.id === id ? { ...req, ...updatedRequest } : req
-            )
-        );
-    }, []);
+  const removeRequest = useCallback(
+    (id: string) => {
+      queryClient.setQueryData<DevisResponse>(queryKey, (old) =>
+        old
+          ? {
+              ...old,
+              data: old.data.filter((r) => r.id !== id),
+              count: Math.max(0, (old.count ?? 0) - 1),
+            }
+          : old
+      );
+    },
+    [queryClient, queryKey]
+  );
 
-    const removeRequest = useCallback((id: string) => {
-        setRequests(prev => prev.filter(req => req.id !== id));
-    }, []);
+  const addRequest = useCallback(
+    (newRequest: DevisRequest) => {
+      queryClient.setQueryData<DevisResponse>(queryKey, (old) =>
+        old
+          ? {
+              ...old,
+              data: [newRequest, ...old.data],
+              count: (old.count ?? 0) + 1,
+            }
+          : old
+      );
+    },
+    [queryClient, queryKey]
+  );
 
-    const addRequest = useCallback((newRequest: DevisRequest) => {
-        setRequests(prev => [newRequest, ...prev]);
-    }, []);
-
-    useEffect(() => {
-        fetchRequests();
-    }, [fetchRequests]);
-
-    return {
-        requests,
-        loading,
-        error,
-        fetchRequests,
-        updateRequest,
-        removeRequest,
-        addRequest,
-        refetch: () => fetchRequests(),
-    };
+  return {
+    requests: query.data?.data ?? [],
+    loading: query.isLoading,
+    error: query.error
+      ? query.error instanceof Error
+        ? query.error.message
+        : "Failed to load requests"
+      : query.data?.error ?? null,
+    fetchRequests: query.refetch,
+    refetch: query.refetch,
+    updateRequest,
+    removeRequest,
+    addRequest,
+  };
 };

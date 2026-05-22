@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { DevisRequest, FilterOptions } from '@/types/devis';
 import { DevisService } from '@/services/devisService';
+import { useDebounce } from './useDebounce';
 
 export const useDevisFilters = (requests: DevisRequest[]) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,13 +15,18 @@ export const useDevisFilters = (requests: DevisRequest[]) => {
     to: undefined,
   });
 
+  // Debounce the search input so filtering doesn't run on every keystroke.
+  // Cheap with client-side filtering today; required shape if search ever
+  // moves to the server (one keypress = one Supabase request without this).
+  const debouncedSearchTerm = useDebounce(searchTerm, 250);
+
   // Memoized filtered requests
   const filteredRequests = useMemo(() => {
     let filtered = [...requests];
 
     // Apply search filter
-    if (searchTerm) {
-      filtered = DevisService.filterRequests(filtered, searchTerm);
+    if (debouncedSearchTerm) {
+      filtered = DevisService.filterRequests(filtered, debouncedSearchTerm);
     }
 
     // Apply status filter
@@ -41,7 +47,7 @@ export const useDevisFilters = (requests: DevisRequest[]) => {
     }
 
     return filtered;
-  }, [requests, searchTerm, statusFilter, brandFilter, dateRange]);
+  }, [requests, debouncedSearchTerm, statusFilter, brandFilter, dateRange]);
 
   // Clear all filters
   const clearFilters = () => {

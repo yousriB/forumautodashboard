@@ -3,106 +3,68 @@ import { TestDriveRequest, TestDriveStatus } from '@/types/testDrive';
 import { cleanTestDriveData } from '@/utils/testDriveUtils';
 
 /**
- * Fetch all test drive requests from Supabase
+ * Fetch all test drive requests from Supabase.
+ *
+ * Accepts an optional AbortSignal so React Query can cancel in-flight
+ * requests when the component unmounts.
  */
-export const fetchTestDriveRequests = async (): Promise<TestDriveRequest[]> => {
+export const fetchTestDriveRequests = async (
+  signal?: AbortSignal
+): Promise<TestDriveRequest[]> => {
   try {
-    console.log('Fetching test drive requests...');
-    const { data, error } = await supabase
+    let query = supabase
       .from('test_drive_requests')
       .select('*')
       .order('created_at', { ascending: false });
+
+    if (signal) {
+      query = query.abortSignal(signal);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching test drive requests:', error);
       throw error;
     }
 
-    console.log('Fetched test drive requests:', data?.length || 0);
-    // Clean up the data (trim status values)
-    return data.map(cleanTestDriveData);
+    return (data ?? []).map(cleanTestDriveData);
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') throw error;
     console.error('Error fetching test drive requests:', error);
     throw new Error('Failed to fetch test drive requests');
   }
 };
 
 /**
- * Update test drive request status
+ * Update test drive request status via the update_test_drive_status RPC.
+ *
+ * Previously this was a SELECT followed by an UPDATE (and a stale PGRST116
+ * retry path that also fired a second write). The RPC does it in one call.
  */
 export const updateTestDriveStatus = async (
-  requestId: string, 
+  requestId: string,
   newStatus: TestDriveStatus
 ): Promise<TestDriveRequest> => {
-  try {
-    // Validate inputs
-    if (!requestId || typeof requestId !== 'string') {
-      throw new Error('Invalid request ID provided');
-    }
-    
-    if (!newStatus || !['pending', 'confirmed', 'completed', 'cancelled'].includes(newStatus)) {
-      throw new Error('Invalid status provided');
-    }
-
-    console.log('Updating test drive status:', { 
-      requestId, 
-      newStatus, 
-      requestIdType: typeof requestId,
-      requestIdLength: requestId?.length 
-    });
-    
-    // First, check if the record exists
-    const { data: existingData, error: fetchError } = await supabase
-      .from('test_drive_requests')
-      .select('id, status')
-      .eq('id', requestId)
-      .single();
-
-    if (fetchError) {
-      console.error('Error fetching existing record:', fetchError);
-      throw new Error(`Record not found: ${fetchError.message}`);
-    }
-
-    console.log('Existing record found:', existingData);
-    
-    // Try a simple update first (just status)
-    let { data, error } = await supabase
-      .from('test_drive_requests')
-      .update({ status: newStatus })
-      .eq('id', requestId)
-      .select()
-      .single();
-
-    // If that fails, try with updated_at
-    if (error && error.code === 'PGRST116') {
-      console.log('Retrying with updated_at field...');
-      const updateData = { 
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-      
-      const retryResult = await supabase
-        .from('test_drive_requests')
-        .update(updateData)
-        .eq('id', requestId)
-        .select()
-        .single();
-        
-      data = retryResult.data;
-      error = retryResult.error;
-    }
-
-    if (error) {
-      console.error('Supabase error details:', error);
-      throw error;
-    }
-
-    console.log('Successfully updated test drive status:', data);
-    return cleanTestDriveData(data);
-  } catch (error) {
-    console.error('Error updating test drive status:', error);
-    throw new Error(`Failed to update test drive status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  if (!requestId || typeof requestId !== 'string') {
+    throw new Error('Invalid request ID provided');
   }
+
+  if (!newStatus || !['pending', 'confirmed', 'completed', 'cancelled'].includes(newStatus)) {
+    throw new Error('Invalid status provided');
+  }
+
+  const { data, error } = await supabase.rpc('update_test_drive_status', {
+    p_id: requestId,
+    p_new_status: newStatus,
+  });
+
+  if (error) {
+    console.error('Supabase error details:', error);
+    throw new Error(`Failed to update test drive status: ${error.message}`);
+  }
+
+  return cleanTestDriveData(data as TestDriveRequest);
 };
 
 /**

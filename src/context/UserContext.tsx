@@ -1,5 +1,13 @@
 // context/UserContext.tsx
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  ReactNode,
+} from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -23,98 +31,145 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
+// Cache profile fetches for 60s. TOKEN_REFRESHED can fire every ~50 minutes
+// (and on every tab focus that finds the session needs refreshing); without this
+// cache, every refresh produces another SELECT on public.users.
+const PROFILE_CACHE_TTL_MS = 60_000;
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUserState] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Cache the last successful profile fetch by auth id.
+  const profileCache = useRef<{ id: string; data: User; ts: number } | null>(null);
+  // Dedup concurrent fetchProfile calls (in-flight promise reuse).
+  const inFlightRef = useRef<Promise<User | null> | null>(null);
+
   // ── Fetch role + brand from the profile table ─────────────────────────────
-  const fetchProfile = async (authId: string, email: string): Promise<User | null> => {
-    // Primary lookup by auth ID
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, email, role, brand")
-      .eq("id", authId)
-      .maybeSingle();
-
-    if (error) console.error("[UserContext] fetchProfile error:", error.message);
-    if (data) return data as User;
-
-    // Fallback: match by email (handles legacy rows where id ≠ auth id)
-    const { data: byEmail } = await supabase
-      .from("users")
-      .select("id, email, role, brand")
-      .eq("email", email)
-      .maybeSingle();
-
-    return (byEmail as User) ?? null;
-  };
-
-  // ── Core auth-state handler (async, with full error safety) ──────────────
-  //
-  // WHY setTimeout(0):
-  //   Supabase's onAuthStateChange does NOT await async callbacks.
-  //   If we put async work directly in the callback, Supabase fires the next
-  //   event before the previous one finishes → race conditions.
-  //   Deferring to the next tick (setTimeout 0) moves the async work out of
-  //   Supabase's internal callback context entirely, making it safe.
-  //
-  // WHY no separate init() / getSession():
-  //   Supabase v2 fires INITIAL_SESSION synchronously when the listener is
-  //   registered, covering the "restore on mount" case automatically.
-  //   Having both init() AND onAuthStateChange causes them to run concurrently
-  //   and race each other on every page load.
-  const handleAuthChange = async (session: Session | null) => {
-    try {
-      if (!session?.user) {
-        setUserState(null);
-        return;
+  const fetchProfile = useCallback(
+    async (authId: string, email: string): Promise<User | null> => {
+      // Cache hit — skip the network entirely.
+      const cached = profileCache.current;
+      if (cached && cached.id === authId && Date.now() - cached.ts < PROFILE_CACHE_TTL_MS) {
+        return cached.data;
       }
 
-      const profile = await fetchProfile(session.user.id, session.user.email ?? "");
-      setUserState(profile);
-    } catch (error) {
-      // Even on unexpected errors, clear the user so the app never gets stuck
-      console.error("[UserContext] handleAuthChange error:", error);
-      setUserState(null);
-    } finally {
-      // ALWAYS unset loading — this is the only place it needs to happen
-      setLoading(false);
-    }
-  };
+      // In-flight dedup — if another call started fetching the same profile,
+      // wait on its promise instead of starting a second request.
+      if (inFlightRef.current) {
+        return inFlightRef.current;
+      }
+
+      inFlightRef.current = (async () => {
+        // Primary lookup by auth ID
+        const { data, error } = await supabase
+          .from("users")
+          .select("id, email, role, brand")
+          .eq("id", authId)
+          .maybeSingle();
+
+        if (error) console.error("[UserContext] fetchProfile error:", error.message);
+
+        let profile = (data as User | null) ?? null;
+
+        // Fallback: match by email (handles legacy rows where id ≠ auth id).
+        // Only run the fallback if the primary lookup returned NO row AND no
+        // database error — both empty result + DB error were producing a second
+        // request before.
+        if (!profile && !error) {
+          const { data: byEmail } = await supabase
+            .from("users")
+            .select("id, email, role, brand")
+            .eq("email", email)
+            .maybeSingle();
+          profile = (byEmail as User | null) ?? null;
+        }
+
+        if (profile) {
+          profileCache.current = { id: authId, data: profile, ts: Date.now() };
+        }
+        return profile;
+      })();
+
+      try {
+        return await inFlightRef.current;
+      } finally {
+        inFlightRef.current = null;
+      }
+    },
+    []
+  );
+
+  // ── Core auth-state handler ───────────────────────────────────────────────
+  const handleAuthChange = useCallback(
+    async (session: Session | null) => {
+      try {
+        if (!session?.user) {
+          profileCache.current = null;
+          setUserState(null);
+          return;
+        }
+
+        // If the auth id matches what's already in state AND the cache is
+        // fresh, skip the fetch entirely. This is what kills the
+        // refetch-on-every-token-refresh storm.
+        const current = profileCache.current;
+        if (current && current.id === session.user.id) {
+          setUserState((prev) => prev ?? current.data);
+          return;
+        }
+
+        const profile = await fetchProfile(session.user.id, session.user.email ?? "");
+        setUserState(profile);
+      } catch (error) {
+        console.error("[UserContext] handleAuthChange error:", error);
+        setUserState(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchProfile]
+  );
 
   useEffect(() => {
     let mounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!mounted) return;
-        // Defer async work outside Supabase's callback context (see note above)
-        setTimeout(() => {
-          if (mounted) handleAuthChange(session);
-        }, 0);
-      }
-    );
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      // Defer async work outside Supabase's callback context (Supabase v2's
+      // onAuthStateChange does NOT await async callbacks; running async work
+      // directly in the callback can race the next event).
+      setTimeout(() => {
+        if (mounted) handleAuthChange(session);
+      }, 0);
+    });
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [handleAuthChange]);
 
   // ── setUser: used by Login.tsx to set the user after sign-in ─────────────
-  const setUser = (userData: User | null) => {
+  const setUser = useCallback((userData: User | null) => {
+    if (userData) {
+      profileCache.current = { id: userData.id, data: userData, ts: Date.now() };
+    } else {
+      profileCache.current = null;
+    }
     setUserState(userData);
-  };
+  }, []);
 
   // ── logout ────────────────────────────────────────────────────────────────
-  const logout = async () => {
+  const logout = useCallback(async () => {
+    profileCache.current = null;
     await supabase.auth.signOut();
-    // onAuthStateChange will fire SIGNED_OUT → handleAuthChange(null) → clears user
-    // but we also clear immediately for instant UI response
     setUserState(null);
-  };
+  }, []);
 
   return (
     <UserContext.Provider value={{ user, loading, setUser, logout }}>

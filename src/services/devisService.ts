@@ -6,21 +6,27 @@ import {
     DevisResponse,
     FilterOptions
 } from "@/types/devis";
-import { isValidStatusTransition, getLatestStatusDateObject } from "@/utils/devisUtils";
+import { getLatestStatusDateObject } from "@/utils/devisUtils";
 
 export class DevisService {
     /**
-     * Fetch devis requests based on type and filters
+     * Fetch devis requests based on type and filters.
+     *
+     * Accepts an optional AbortSignal so React Query can cancel in-flight
+     * requests when the component unmounts or the query key changes — without
+     * this, navigating quickly between pages produces requests the security
+     * logger sees but the UI throws away.
      */
     static async fetchRequests(
         type: DevisType | 'all',
         filters?: FilterOptions,
         userRole?: string,
-        userBrand?: string
+        userBrand?: string,
+        signal?: AbortSignal
     ): Promise<DevisResponse> {
         try {
             if (type === 'all') {
-                return this.fetchAllRequests(filters, userRole, userBrand);
+                return this.fetchAllRequests(filters, userRole, userBrand, signal);
             }
 
             const tableName = type === "standard" ? "devis_requests" : "custom_devis_requests";
@@ -56,6 +62,10 @@ export class DevisService {
                 }
             }
 
+            if (signal) {
+                query = query.abortSignal(signal);
+            }
+
             const { data, error, count } = await query;
 
             if (error) {
@@ -76,6 +86,8 @@ export class DevisService {
                 count: count || 0,
             };
         } catch (error) {
+            // Don't swallow AbortError — let React Query treat the request as cancelled.
+            if (error instanceof Error && error.name === "AbortError") throw error;
             console.error(`Error fetching ${type} devis requests:`, error);
             return {
                 data: [],
@@ -86,17 +98,20 @@ export class DevisService {
     }
 
     /**
-     * Fetch all requests (standard and custom) and combine them
+     * Fetch all requests (standard and custom) and combine them.
+     * The two table queries run in parallel — that's intentional, both are
+     * needed for the unified Devis page.
      */
     static async fetchAllRequests(
         filters?: FilterOptions,
         userRole?: string,
-        userBrand?: string
+        userBrand?: string,
+        signal?: AbortSignal
     ): Promise<DevisResponse> {
         try {
             const [standardResponse, customResponse] = await Promise.all([
-                this.fetchRequests('standard', filters, userRole, userBrand),
-                this.fetchRequests('custom', filters, userRole, userBrand)
+                this.fetchRequests('standard', filters, userRole, userBrand, signal),
+                this.fetchRequests('custom', filters, userRole, userBrand, signal)
             ]);
 
             if (standardResponse.error) throw new Error(standardResponse.error);
@@ -112,6 +127,7 @@ export class DevisService {
                 count: allData.length
             };
         } catch (error) {
+            if (error instanceof Error && error.name === "AbortError") throw error;
             console.error("Error fetching all devis requests:", error);
             return {
                 data: [],
@@ -122,7 +138,12 @@ export class DevisService {
     }
 
     /**
-     * Update devis request status
+     * Update devis request status via the update_devis_status RPC.
+     *
+     * Previously this was a SELECT-then-UPDATE pair (2 HTTP requests). The
+     * RPC validates the status transition server-side and returns the updated
+     * row in a single call — the BEFORE UPDATE trigger
+     * handle_devis_status_change() handles timestamp population.
      */
     static async updateStatus(
         id: string,
@@ -131,46 +152,25 @@ export class DevisService {
         isAdmin: boolean
     ): Promise<{ success: boolean; error?: string; data?: DevisRequest }> {
         try {
-            const tableName = type === "standard" ? "devis_requests" : "custom_devis_requests";
-
-            // First, fetch the current request to validate the status transition
-            const { data: currentRequestData, error: fetchError } = await supabase
-                .from(tableName)
-                .select("status")
-                .eq("id", id)
-                .single();
-
-            if (fetchError) {
-                throw fetchError;
-            }
-
-            if (!currentRequestData) {
-                return { success: false, error: "Request not found." };
-            }
-
-            const currentStatus = currentRequestData.status as DevisStatus;
-
-            if (!isValidStatusTransition(currentStatus, status, isAdmin)) {
-                return { success: false, error: "Invalid status transition." };
-            }
-
-            // Only update the status. The trigger will handle timestamps.
-            const updateData = {
-                status,
-            };
-
-            const { data, error } = await supabase
-                .from(tableName)
-                .update(updateData)
-                .eq("id", id)
-                .select()
-                .single();
+            const { data, error } = await supabase.rpc("update_devis_status", {
+                p_id: id,
+                p_new_status: status,
+                p_type: type,
+                p_is_admin: isAdmin,
+            });
 
             if (error) {
+                // 23514 = check_violation (used for invalid transitions)
+                if (error.code === "23514") {
+                    return { success: false, error: "Invalid status transition." };
+                }
                 throw error;
             }
 
-            return { success: true, data: data as DevisRequest };
+            return {
+                success: true,
+                data: { ...(data as DevisRequest), type },
+            };
         } catch (error) {
             console.error("Error updating devis status:", error);
             return {

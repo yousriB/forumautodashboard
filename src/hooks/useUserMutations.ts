@@ -1,68 +1,62 @@
-import { useState } from 'react';
-import { User, UserFormData } from '@/types/user.types';
-import { userService } from '@/services/userService';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { User, UserFormData } from "@/types/user.types";
+import { userService } from "@/services/userService";
+import { queryKeys } from "@/lib/queryKeys";
 
 type UseUserMutationsReturn = {
-  createUser: (userData: Omit<UserFormData, 'id'>) => Promise<User>;
+  createUser: (userData: Omit<UserFormData, "id">) => Promise<User>;
   updateUser: (id: string, userData: Partial<UserFormData>) => Promise<User>;
   deleteUser: (id: string) => Promise<void>;
   loading: boolean;
   error: string | null;
 };
 
+/**
+ * User mutations via React Query.
+ *
+ * Replaces the manual `await refetch()` pattern in pages/Users.tsx with cache
+ * invalidation — React Query will refetch lazily only if the users query is
+ * actually mounted. If the user closes the Users page right after a mutation
+ * the refetch is skipped entirely.
+ */
 export const useUserMutations = (): UseUserMutationsReturn => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const createUser = async (userData: Omit<UserFormData, 'id'>) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const newUser = await userService.createUser(userData);
-      return newUser;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create user';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
 
-  const updateUser = async (id: string, userData: Partial<UserFormData>) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const updatedUser = await userService.updateUser(id, userData);
-      return updatedUser;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update user';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const createMutation = useMutation<User, Error, Omit<UserFormData, "id">>({
+    mutationFn: (userData) => userService.createUser(userData),
+    onSuccess: invalidate,
+  });
 
-  const deleteUser = async (id: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      await userService.deleteUser(id);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete user';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const updateMutation = useMutation<
+    User,
+    Error,
+    { id: string; userData: Partial<UserFormData> }
+  >({
+    mutationFn: ({ id, userData }) => userService.updateUser(id, userData),
+    onSuccess: invalidate,
+  });
 
-  return {
-    createUser,
-    updateUser,
-    deleteUser,
-    loading,
-    error,
-  };
+  const deleteMutation = useMutation<void, Error, string>({
+    mutationFn: (id) => userService.deleteUser(id),
+    onSuccess: invalidate,
+  });
+
+  const createUser = (userData: Omit<UserFormData, "id">) =>
+    createMutation.mutateAsync(userData);
+  const updateUser = (id: string, userData: Partial<UserFormData>) =>
+    updateMutation.mutateAsync({ id, userData });
+  const deleteUser = (id: string) => deleteMutation.mutateAsync(id);
+
+  const loading =
+    createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+  const error =
+    (createMutation.error as Error | null)?.message ??
+    (updateMutation.error as Error | null)?.message ??
+    (deleteMutation.error as Error | null)?.message ??
+    null;
+
+  return { createUser, updateUser, deleteUser, loading, error };
 };

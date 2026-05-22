@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,15 +27,14 @@ import {
   Calendar as CalendarIcon,
   Clock,
   Car,
-  DollarSign,
   Calendar,
-  MessageCircle,
   CheckCircle,
   XCircle,
-  
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { StatsCard } from "@/components/dashboard/StatsCard";
+import { queryKeys } from "@/lib/queryKeys";
+import { applyChange, uniqueChannelName } from "@/lib/realtimeHelpers";
 
 interface AppointmentRequest {
   id: string;
@@ -53,6 +53,8 @@ interface AppointmentRequest {
   status: "pending" | "confirmed" | "completed" | "cancelled";
 }
 
+type AppointmentStatus = AppointmentRequest["status"];
+
 const statusColors = {
   pending: "bg-warning/10 text-warning",
   confirmed: "bg-primary/10 text-primary",
@@ -60,10 +62,22 @@ const statusColors = {
   cancelled: "bg-destructive/10 text-destructive",
 };
 
+async function fetchAppointments(
+  signal?: AbortSignal
+): Promise<AppointmentRequest[]> {
+  let query = supabase
+    .from("appointment_requests")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (signal) query = query.abortSignal(signal);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data as AppointmentRequest[]) ?? [];
+}
+
 export default function Appointments() {
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [appointments, setAppointments] = useState<AppointmentRequest[]>([]);
   const [selectedAppointment, setSelectedAppointment] =
     useState<AppointmentRequest | null>(null);
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
@@ -80,39 +94,28 @@ export default function Appointments() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
-  const fetchAppointments = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("appointment_requests")
-        .select("*")
-        .order("created_at", { ascending: false });
+  // ── Data ────────────────────────────────────────────────────────────────
+  const {
+    data: appointments = [],
+    isLoading: queryLoading,
+  } = useQuery<AppointmentRequest[]>({
+    queryKey: queryKeys.appointments.all,
+    queryFn: ({ signal }) => fetchAppointments(signal),
+  });
 
-      if (error) {
-        console.error("Error fetching appointments:", error);
-        setError("Failed to load appointments");
-      } else {
-        setAppointments(data || []);
-      }
-    } catch (err) {
-      console.error("Error:", err);
-      setError("An unexpected error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // ── Realtime: patch the cache on each event instead of refetching ───────
   useEffect(() => {
-    fetchAppointments();
-
+    const channelName = uniqueChannelName("appointments-list");
     const channel = supabase
-      .channel("appointment_requests")
+      .channel(channelName)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "appointment_requests" },
         (payload) => {
-          console.log("Change received!", payload);
-          fetchAppointments();
+          queryClient.setQueryData<AppointmentRequest[]>(
+            queryKeys.appointments.all,
+            (old) => applyChange(old, payload as never)
+          );
         }
       )
       .subscribe();
@@ -120,32 +123,106 @@ export default function Appointments() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [queryClient]);
 
-  const updateAppointmentStatus = async (
-    appointmentId: string,
-    newStatus: "pending" | "confirmed" | "completed" | "cancelled"
-  ) => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
+  // ── Mutations ───────────────────────────────────────────────────────────
+  const statusMutation = useMutation<
+    void,
+    Error,
+    { appointmentId: string; newStatus: AppointmentStatus },
+    { previous: AppointmentRequest[] | undefined }
+  >({
+    mutationFn: async ({ appointmentId, newStatus }) => {
+      const { error } = await supabase
         .from("appointment_requests")
         .update({ status: newStatus })
         .eq("id", appointmentId);
+      if (error) throw error;
+    },
+    onMutate: async ({ appointmentId, newStatus }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.appointments.all });
+      const previous = queryClient.getQueryData<AppointmentRequest[]>(
+        queryKeys.appointments.all
+      );
+      queryClient.setQueryData<AppointmentRequest[]>(
+        queryKeys.appointments.all,
+        (old) =>
+          (old ?? []).map((a) =>
+            a.id === appointmentId ? { ...a, status: newStatus } : a
+          )
+      );
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous)
+        queryClient.setQueryData(queryKeys.appointments.all, ctx.previous);
+      setError("Failed to update appointment status");
+    },
+    onSuccess: () => {
+      setIsAppointmentDetailsDialogOpen(false);
+    },
+  });
 
-      if (error) {
-        console.error("Error updating appointment status:", error);
-        setError("Failed to update appointment status");
-      } else {
-        await fetchAppointments();
-        setIsAppointmentDetailsDialogOpen(false);
-      }
-    } catch (err) {
-      console.error("Error:", err);
-      setError("An unexpected error occurred");
-    } finally {
-      setLoading(false);
-    }
+  const rescheduleMutation = useMutation<
+    void,
+    Error,
+    { appointmentId: string; date: string; time: string },
+    { previous: AppointmentRequest[] | undefined }
+  >({
+    mutationFn: async ({ appointmentId, date, time }) => {
+      const { error } = await supabase
+        .from("appointment_requests")
+        .update({
+          appointment_date: date,
+          appointment_time: time,
+          status: "confirmed",
+        })
+        .eq("id", appointmentId);
+      if (error) throw error;
+    },
+    onMutate: async ({ appointmentId, date, time }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.appointments.all });
+      const previous = queryClient.getQueryData<AppointmentRequest[]>(
+        queryKeys.appointments.all
+      );
+      queryClient.setQueryData<AppointmentRequest[]>(
+        queryKeys.appointments.all,
+        (old) =>
+          (old ?? []).map((a) =>
+            a.id === appointmentId
+              ? {
+                  ...a,
+                  appointment_date: date,
+                  appointment_time: time,
+                  status: "confirmed",
+                }
+              : a
+          )
+      );
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous)
+        queryClient.setQueryData(queryKeys.appointments.all, ctx.previous);
+      setError("Failed to reschedule appointment");
+    },
+    onSuccess: () => {
+      setIsRescheduleModalOpen(false);
+      setIsAppointmentDetailsDialogOpen(false);
+      setRescheduleData({ date: "", time: "" });
+      setAppointmentToReschedule(null);
+    },
+  });
+
+  const loading =
+    queryLoading || statusMutation.isPending || rescheduleMutation.isPending;
+
+  const updateAppointmentStatus = (
+    appointmentId: string,
+    newStatus: AppointmentStatus
+  ) => {
+    if (statusMutation.isPending) return; // dedup double-click
+    statusMutation.mutate({ appointmentId, newStatus });
   };
 
   const rescheduleAppointment = (appointmentId: string) => {
@@ -158,7 +235,7 @@ export default function Appointments() {
     setIsRescheduleModalOpen(true);
   };
 
-  const handleSaveReschedule = async () => {
+  const handleSaveReschedule = () => {
     if (
       !appointmentToReschedule ||
       !rescheduleData.date ||
@@ -167,34 +244,12 @@ export default function Appointments() {
       alert("Please select both date and time.");
       return;
     }
-
-    try {
-      setLoading(true);
-      const { error } = await supabase
-        .from("appointment_requests")
-        .update({
-          appointment_date: rescheduleData.date,
-          appointment_time: rescheduleData.time,
-          status: "confirmed",
-        })
-        .eq("id", appointmentToReschedule);
-
-      if (error) {
-        console.error("Error rescheduling appointment:", error);
-        setError("Failed to reschedule appointment");
-      } else {
-        fetchAppointments();
-        setIsRescheduleModalOpen(false);
-        setIsAppointmentDetailsDialogOpen(false);
-        setRescheduleData({ date: "", time: "" });
-        setAppointmentToReschedule(null);
-      }
-    } catch (err) {
-      console.error("Unexpected error:", err);
-      setError("An unexpected error occurred");
-    } finally {
-      setLoading(false);
-    }
+    if (rescheduleMutation.isPending) return;
+    rescheduleMutation.mutate({
+      appointmentId: appointmentToReschedule,
+      date: rescheduleData.date,
+      time: rescheduleData.time,
+    });
   };
 
   const ymd = (d: Date) => {
@@ -240,28 +295,34 @@ export default function Appointments() {
           </div>
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 w-full">
-            <StatsCard 
-              title="Pending" 
-              value={appointments.filter(a => a.status === 'pending').length.toString()} 
-              icon={Clock} 
+            <StatsCard
+              title="Pending"
+              value={appointments.filter((a) => a.status === "pending").length.toString()}
+              icon={Clock}
             />
             <StatsCard
               title="Confirmed"
-              value={appointments.filter(a => a.status === 'confirmed').length.toString()}
+              value={appointments.filter((a) => a.status === "confirmed").length.toString()}
               icon={CheckCircle}
             />
-            <StatsCard 
-              title="Completed" 
-              value={appointments.filter(a => a.status === 'completed').length.toString()} 
-              icon={CheckCircle} 
+            <StatsCard
+              title="Completed"
+              value={appointments.filter((a) => a.status === "completed").length.toString()}
+              icon={CheckCircle}
             />
-            <StatsCard 
-              title="Cancelled" 
-              value={appointments.filter(a => a.status === 'cancelled').length.toString()} 
-              icon={XCircle} 
+            <StatsCard
+              title="Cancelled"
+              value={appointments.filter((a) => a.status === "cancelled").length.toString()}
+              icon={XCircle}
             />
           </div>
         </header>
+
+        {error && (
+          <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">
+            {error}
+          </div>
+        )}
 
         {/* Calendar - Full Width */}
         <Card className="p-2 sm:p-4 shadow-card border-border w-full">
@@ -500,12 +561,13 @@ export default function Appointments() {
                                 {selectedAppointment.status === "pending" && (
                                   <Button
                                     className="w-full sm:w-auto"
-                                    onClick={() => {
+                                    disabled={statusMutation.isPending}
+                                    onClick={() =>
                                       updateAppointmentStatus(
                                         selectedAppointment.id,
                                         "confirmed"
-                                      );
-                                    }}
+                                      )
+                                    }
                                   >
                                     Confirm Appointment
                                   </Button>
@@ -516,6 +578,7 @@ export default function Appointments() {
                                   <Button
                                     variant="outline"
                                     className="w-full sm:w-auto"
+                                    disabled={statusMutation.isPending}
                                     onClick={() =>
                                       rescheduleAppointment(
                                         selectedAppointment.id
@@ -528,12 +591,13 @@ export default function Appointments() {
                                 {selectedAppointment.status === "confirmed" && (
                                   <Button
                                     className="w-full sm:w-auto"
-                                    onClick={() => {
+                                    disabled={statusMutation.isPending}
+                                    onClick={() =>
                                       updateAppointmentStatus(
                                         selectedAppointment.id,
                                         "completed"
-                                      );
-                                    }}
+                                      )
+                                    }
                                   >
                                     Mark as Completed
                                   </Button>
@@ -555,13 +619,14 @@ export default function Appointments() {
                                   <Button
                                     variant="destructive"
                                     className="w-full sm:w-auto"
-                                    onClick={async () => {
+                                    disabled={statusMutation.isPending}
+                                    onClick={() => {
                                       if (
                                         confirm(
                                           "Are you sure you want to cancel this appointment?"
                                         )
                                       ) {
-                                        await updateAppointmentStatus(
+                                        updateAppointmentStatus(
                                           selectedAppointment.id,
                                           "cancelled"
                                         );
@@ -644,6 +709,7 @@ export default function Appointments() {
               variant="outline"
               className="w-full sm:w-auto"
               onClick={() => setIsRescheduleModalOpen(false)}
+              disabled={rescheduleMutation.isPending}
             >
               Cancel
             </Button>
@@ -652,7 +718,7 @@ export default function Appointments() {
               onClick={handleSaveReschedule}
               disabled={loading}
             >
-              {loading ? "Saving..." : "Save Changes"}
+              {rescheduleMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </DialogContent>
