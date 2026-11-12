@@ -64,9 +64,9 @@ export interface DevisResponse {
 export const STATUS_COLORS = {
   pending: "border-transparent bg-[#f6ebc8] text-[#7a5a0a] hover:bg-[#f6ebc8]",
   processing: "border-transparent bg-[#e7e7e4] text-[#3a3a36] hover:bg-[#e7e7e4]",
-  completed: "border-transparent bg-[#e6f5c2] text-[#3d5a0c] hover:bg-[#e6f5c2]",
+  completed: "border-transparent bg-[#e4f0dc] text-[#2f5d24] hover:bg-[#e4f0dc]",
   rejected: "border-transparent bg-[#fbe2da] text-[#9a3415] hover:bg-[#fbe2da]",
-  sold: "border-transparent bg-[#1b1b1a] text-[#d4f75a] hover:bg-[#1b1b1a]",
+  sold: "border-transparent bg-[#ef1923] text-white hover:bg-[#ef1923]",
 } as const;
 
 // Status display names

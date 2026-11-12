@@ -11,7 +11,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="relative min-h-screen bg-background-secondary">
-      {/* Soft lime wash in the top-right corner */}
+      {/* Soft red wash in the top-right corner */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 bg-gradient-subtle opacity-70"

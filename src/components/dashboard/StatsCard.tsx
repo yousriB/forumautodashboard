@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export type StatsTone = "ink" | "lime" | "amber" | "stone" | "coral";
+export type StatsTone = "ink" | "brand" | "green" | "amber" | "stone" | "coral";
 
 type StatsCardProps = {
   title: React.ReactNode;
@@ -12,8 +12,9 @@ type StatsCardProps = {
 };
 
 const TONES: Record<StatsTone, string> = {
-  ink: "bg-primary text-lime",
-  lime: "bg-[#e6f5c2] text-[#3d5a0c]",
+  ink: "bg-primary text-primary-foreground",
+  brand: "bg-brand text-brand-foreground",
+  green: "bg-[#e4f0dc] text-[#2f5d24]",
   amber: "bg-[#f6ebc8] text-[#7a5a0a]",
   stone: "bg-[#e7e7e4] text-[#3a3a36]",
   coral: "bg-[#fbe2da] text-[#9a3415]",

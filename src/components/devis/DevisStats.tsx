@@ -66,7 +66,7 @@ export const DevisStats: React.FC<DevisStatsProps> = React.memo(
           value={stats.completed}
           icon={CheckCircle2}
           description="Finished"
-          tone="lime"
+          tone="green"
         />
         <StatsCard
           title="Sold"

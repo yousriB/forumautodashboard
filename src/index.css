@@ -7,7 +7,7 @@
 /* @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'); */
 
 @layer base {
-  /* Forum Auto — warm neutral surfaces, ink-black actions, lime highlight. */
+  /* Forum Auto — warm neutral surfaces, ink-black actions, Forum Auto red highlight. */
   :root {
     /* Ink (primary actions, active nav) */
     --primary: 60 3% 11%;
@@ -15,12 +15,12 @@
     --primary-light: 60 2% 30%;
     --primary-dark: 60 3% 6%;
 
-    /* Lime highlight + its pale wash (hover / selected rows) */
-    --lime: 76 88% 56%;
-    --lime-foreground: 60 3% 11%;
-    --accent: 74 70% 92%;
-    --accent-foreground: 60 3% 11%;
-    --accent-light: 76 80% 96%;
+    /* Brand red (logo #ef1923) + its pale wash (hover / selected rows) */
+    --brand: 357 87% 52%;
+    --brand-foreground: 0 0% 100%;
+    --accent: 357 80% 96%;
+    --accent-foreground: 357 70% 32%;
+    --accent-light: 357 80% 98%;
 
     /* Surfaces */
     --background: 0 0% 100%;
@@ -59,8 +59,8 @@
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(60 3% 14%), hsl(60 3% 6%));
     --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(60 5% 99%));
-    --gradient-subtle: radial-gradient(120% 80% at 100% 0%, hsl(76 70% 90%) 0%, hsl(60 4% 94%) 55%);
-    --gradient-ink: radial-gradient(90% 120% at 85% 70%, hsl(76 75% 52% / 0.9) 0%, hsl(76 60% 30% / 0.35) 35%, transparent 65%), linear-gradient(135deg, hsl(60 3% 9%), hsl(60 3% 13%));
+    --gradient-subtle: radial-gradient(120% 80% at 100% 0%, hsl(357 80% 95%) 0%, hsl(60 4% 94%) 55%);
+    --gradient-ink: radial-gradient(90% 120% at 85% 70%, hsl(357 87% 52% / 0.85) 0%, hsl(357 70% 30% / 0.35) 35%, transparent 65%), linear-gradient(135deg, hsl(60 3% 9%), hsl(60 3% 13%));
 
     /* Shadows — soft and low */
     --shadow-sm: 0 1px 2px 0 hsl(60 3% 11% / 0.04);
@@ -142,7 +142,7 @@
   }
 
   ::selection {
-    background: hsl(var(--lime) / 0.6);
+    background: hsl(var(--brand) / 0.25);
   }
 }
 

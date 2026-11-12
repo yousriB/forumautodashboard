@@ -1,30 +1,24 @@
 import { cn } from "@/lib/utils";
 
-/** Forum Auto mark: ink tile with a lime monogram. */
-export function BrandMark({ className, size = "md" }: { className?: string; size?: "sm" | "md" | "lg" }) {
-  const box = size === "lg" ? "h-12 w-12 rounded-2xl text-lg" : size === "sm" ? "h-7 w-7 rounded-lg text-[11px]" : "h-9 w-9 rounded-xl text-sm";
+/** The real Forum Auto wordmark (red, or white for dark surfaces). */
+export function BrandLogo({ className, variant = "red" }: { className?: string; variant?: "red" | "white" }) {
   return (
-    <div
-      className={cn(
-        "flex shrink-0 items-center justify-center bg-primary font-semibold tracking-tight text-lime",
-        box,
-        className,
-      )}
-      aria-hidden="true"
-    >
-      fa
-    </div>
+    <img
+      src={variant === "white" ? "/brand/forum-auto-logo-white.png" : "/brand/forum-auto-logo.png"}
+      alt="Forum Auto"
+      width={560}
+      height={182}
+      className={cn("h-9 w-auto shrink-0 self-start select-none", className)}
+      draggable={false}
+    />
   );
 }
 
 export function BrandLockup({ className }: { className?: string }) {
   return (
-    <div className={cn("flex items-center gap-2.5", className)}>
-      <BrandMark />
-      <div className="leading-none">
-        <div className="text-[15px] font-semibold tracking-tight text-foreground">forum auto</div>
-        <div className="eyebrow mt-1 text-[10px]">sales desk</div>
-      </div>
+    <div className={cn("flex flex-col items-start gap-1.5", className)}>
+      <BrandLogo className="h-11" />
+      <span className="eyebrow text-[10px]">Sales desk</span>
     </div>
   );
 }

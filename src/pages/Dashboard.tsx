@@ -57,9 +57,9 @@ const EMPTY_STATS: MonthlyCarStats = {
 const STATUS_COLORS = {
   created: "#e9c46a",    // amber  — pending
   processing: "#a3a39c", // stone  — processing
-  completed: "#b9e34a",  // lime   — completed
-  sold: "#1b1b1a",       // ink    — sold
-  rejected: "#ec8a6b",   // coral  — rejected
+  completed: "#9dc183",  // green  — completed
+  sold: "#ef1923",       // brand  — sold
+  rejected: "#f2b8a8",   // blush  — rejected
 };
 
 export default function Dashboard() {
@@ -134,7 +134,7 @@ export default function Dashboard() {
     { label: "Pending", value: stats.created_count, color: STATUS_COLORS.created },
     { label: "Processing", value: stats.processing_count, color: STATUS_COLORS.processing },
     { label: "Completed", value: stats.completed_count, color: STATUS_COLORS.completed },
-    { label: "Sold", value: stats.sold_count, color: "#f4f4f0" }, // light on the dark hero
+    { label: "Sold", value: stats.sold_count, color: STATUS_COLORS.sold },
     { label: "Rejected", value: stats.rejected_count, color: STATUS_COLORS.rejected },
   ];
 
@@ -233,8 +233,8 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
           <StatsCard title="Pending" value={stats.created_count} icon={Calendar} description="Created this month" tone="amber" />
           <StatsCard title="Processing" value={stats.processing_count} icon={Loader2} description="Active processing" tone="stone" />
-          <StatsCard title="Completed" value={stats.completed_count} icon={CheckCircle2} description="Finished requests" tone="lime" />
-          <StatsCard title="Sold" value={stats.sold_count} icon={DollarSign} description="Closed sales" tone="ink" />
+          <StatsCard title="Completed" value={stats.completed_count} icon={CheckCircle2} description="Finished requests" tone="green" />
+          <StatsCard title="Sold" value={stats.sold_count} icon={DollarSign} description="Closed sales" tone="brand" />
           <StatsCard
             title="Rejected"
             value={stats.rejected_count}
@@ -302,8 +302,8 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-3">
               {[
-                { label: "Conversion", hint: "Sold / all", value: conversion, bar: "bg-lime" },
-                { label: "Rejection", hint: "Rejected / all", value: rejection, bar: "bg-[#ec8a6b]" },
+                { label: "Conversion", hint: "Sold / all", value: conversion, bar: "bg-brand" },
+                { label: "Rejection", hint: "Rejected / all", value: rejection, bar: "bg-[#f2b8a8]" },
               ].map((r) => (
                 <div key={r.label} className="rounded-2xl bg-secondary p-4">
                   <div className="flex items-baseline justify-between">

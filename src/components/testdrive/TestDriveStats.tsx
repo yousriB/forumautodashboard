@@ -13,7 +13,7 @@ export const TestDriveStats = React.memo<TestDriveStatsProps>(({ stats }) => {
       <StatsCard title="Total requests" value={stats.total} icon={Car} description="All test drives" tone="stone" />
       <StatsCard title="Pending" value={stats.pending} icon={Clock} description="Awaiting reply" tone="amber" />
       <StatsCard title="Confirmed" value={stats.confirmed} icon={Calendar} description="Booked" tone="ink" />
-      <StatsCard title="Completed" value={stats.completed} icon={CheckCircle} description="Driven" tone="lime" />
+      <StatsCard title="Completed" value={stats.completed} icon={CheckCircle} description="Driven" tone="green" />
     </div>
   );
 });

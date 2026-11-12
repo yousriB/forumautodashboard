@@ -54,7 +54,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           isOpen ? "translate-x-0" : "-translate-x-[calc(100%+1rem)]",
         )}
       >
-        <div className="flex h-[72px] items-center justify-between px-5">
+        <div className="flex items-start justify-between px-5 pb-2 pt-6">
           <BrandLockup />
           <button
             onClick={() => setIsOpen(false)}
@@ -78,7 +78,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               >
                 <item.icon className="h-[18px] w-[18px]" />
                 <span className="font-medium">{item.name}</span>
-                {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-lime" />}
+                {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand" />}
               </NavLink>
             );
           })}
@@ -86,7 +86,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
         <div className="m-3 rounded-2xl bg-secondary p-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-lime text-sm font-semibold text-lime-foreground">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-foreground">
               {initial}
             </div>
             <div className="min-w-0 flex-1">

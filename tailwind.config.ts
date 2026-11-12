@@ -23,9 +23,9 @@ export default {
         input: "hsl(var(--input))",
         "input-focus": "hsl(var(--input-focus))",
         ring: "hsl(var(--ring))",
-        lime: {
-          DEFAULT: "hsl(var(--lime))",
-          foreground: "hsl(var(--lime-foreground))",
+        brand: {
+          DEFAULT: "hsl(var(--brand))",
+          foreground: "hsl(var(--brand-foreground))",
         },
         background: "hsl(var(--background))",
         "background-secondary": "hsl(var(--background-secondary))",

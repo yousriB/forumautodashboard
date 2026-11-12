@@ -1,6 +1,6 @@
 import { Menu } from "lucide-react";
 import { useUser } from "@/context/UserContext";
-import { BrandMark } from "./BrandMark";
+import { BrandLogo } from "./BrandMark";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -32,7 +32,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           </button>
           <div className="min-w-0 pl-2 lg:pl-3">
             <div className="eyebrow flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-lime" />
+              <span className="h-1.5 w-1.5 rounded-full bg-brand" />
               {dateLabel}
             </div>
             <p className="truncate text-sm text-muted-foreground">
@@ -42,7 +42,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
         </div>
 
-        <BrandMark size="sm" className="lg:hidden" />
+        <BrandLogo className="h-6 lg:hidden" />
       </div>
     </header>
   );

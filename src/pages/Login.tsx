@@ -4,7 +4,7 @@ import { ArrowRight, Lock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BrandMark } from "@/components/dashboard/BrandMark";
+import { BrandLogo } from "@/components/dashboard/BrandMark";
 import { useUser } from "@/context/UserContext";
 import { supabase } from "@/lib/supabaseClient";
 import { logSecurityEvent } from "@/lib/security-logger";
@@ -113,10 +113,7 @@ export default function Login() {
       <div className="grid min-h-[calc(100vh-1.5rem)] gap-3 lg:grid-cols-[1.1fr_1fr]">
         {/* Brand panel */}
         <section className="relative hidden overflow-hidden rounded-3xl bg-ink p-10 text-white lg:flex lg:flex-col">
-          <div className="flex items-center gap-2.5">
-            <BrandMark className="bg-white/10" />
-            <span className="text-[15px] font-semibold tracking-tight">forum auto</span>
-          </div>
+          <BrandLogo variant="white" className="h-12" />
 
           <div className="mt-auto max-w-md">
             <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-white/50">Espace ventes</p>
@@ -134,7 +131,7 @@ export default function Login() {
             {Array.from({ length: 28 }, (_, i) => (
               <span
                 key={i}
-                className={i === 19 ? "h-8 w-1.5 rounded-full bg-lime" : "h-8 w-1.5 rounded-full bg-white/15"}
+                className={i === 19 ? "h-8 w-1.5 rounded-full bg-brand" : "h-8 w-1.5 rounded-full bg-white/15"}
                 style={{ height: `${14 + ((i * 37) % 22)}px` }}
               />
             ))}
@@ -144,9 +141,9 @@ export default function Login() {
         {/* Form */}
         <section className="flex items-center justify-center rounded-3xl bg-card px-6 py-12 shadow-card">
           <div className="w-full max-w-sm animate-scale-in">
-            <BrandMark size="lg" className="mb-8 lg:hidden" />
+            <BrandLogo className="mb-10 h-12 lg:hidden" />
             <p className="eyebrow flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-lime" />
+              <span className="h-1.5 w-1.5 rounded-full bg-brand" />
               Espace personnel
             </p>
             <h2 className="mt-3 text-3xl font-medium tracking-tight text-foreground">Bienvenue.</h2>

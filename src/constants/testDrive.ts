@@ -9,8 +9,8 @@ export const TEST_DRIVE_STATUS = {
 
 export const STATUS_COLORS = {
   pending: "border-transparent bg-[#f6ebc8] text-[#7a5a0a] hover:bg-[#f6ebc8]",
-  confirmed: "border-transparent bg-[#1b1b1a] text-[#d4f75a] hover:bg-[#1b1b1a]",
-  completed: "border-transparent bg-[#e6f5c2] text-[#3d5a0c] hover:bg-[#e6f5c2]",
+  confirmed: "border-transparent bg-[#1b1b1a] text-white hover:bg-[#1b1b1a]",
+  completed: "border-transparent bg-[#e4f0dc] text-[#2f5d24] hover:bg-[#e4f0dc]",
   cancelled: "border-transparent bg-[#fbe2da] text-[#9a3415] hover:bg-[#fbe2da]",
 } as const;
 
