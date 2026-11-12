@@ -1,7 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-export function StatsCard({ title, value, icon: Icon, description, className }) {
+type StatsCardProps = {
+  title: React.ReactNode;
+  value: React.ReactNode;
+  icon: React.ElementType;
+  description?: React.ReactNode;
+  className?: string;
+};
+
+export function StatsCard({ title, value, icon: Icon, description, className }: StatsCardProps) {
   return (
     <Card className={cn("overflow-hidden", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

@@ -117,7 +117,7 @@ export default function Testdrive() {
         <div className="text-center py-12">
           <div className="text-destructive mb-4">Error: {error}</div>
           <button
-            onClick={refreshData}
+            onClick={() => refreshData()}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
           >
             Retry
