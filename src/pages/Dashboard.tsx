@@ -55,11 +55,11 @@ const EMPTY_STATS: MonthlyCarStats = {
 
 // Color Palette mapping for statuses
 const STATUS_COLORS = {
-  created: "#eab308",    // Yellow for Pending/Created
-  processing: "#3b82f6", // Blue for Processing
-  completed: "#22c55e",  // Green for Completed
-  sold: "#15803d",       // Dark Green for Sold
-  rejected: "#ef4444",   // Red for Rejected
+  created: "#e9c46a",    // amber  — pending
+  processing: "#a3a39c", // stone  — processing
+  completed: "#b9e34a",  // lime   — completed
+  sold: "#1b1b1a",       // ink    — sold
+  rejected: "#ec8a6b",   // coral  — rejected
 };
 
 export default function Dashboard() {
@@ -126,22 +126,34 @@ export default function Dashboard() {
     stats.sold_count + 
     stats.rejected_count;
 
+  const monthLabel = months.find((m) => m.value === selectedMonth)?.label;
+  const pct = (n: number) => (totalRequests > 0 ? (n / totalRequests) * 100 : 0);
+  const conversion = pct(stats.sold_count);
+  const rejection = pct(stats.rejected_count);
+  const breakdown = [
+    { label: "Pending", value: stats.created_count, color: STATUS_COLORS.created },
+    { label: "Processing", value: stats.processing_count, color: STATUS_COLORS.processing },
+    { label: "Completed", value: stats.completed_count, color: STATUS_COLORS.completed },
+    { label: "Sold", value: stats.sold_count, color: "#f4f4f0" }, // light on the dark hero
+    { label: "Rejected", value: stats.rejected_count, color: STATUS_COLORS.rejected },
+  ];
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex flex-col gap-4 pb-2 pt-2 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">
-              Performance overview for <span className="font-medium text-foreground">{months.find(m => m.value === selectedMonth)?.label} {selectedYear}</span>
-            </p>
+            <p className="eyebrow">Overview · {selectedBrand === "All" ? "All brands" : selectedBrand}</p>
+            <h1 className="mt-2 text-4xl font-light tracking-tight text-foreground sm:text-5xl">
+              {monthLabel} <span className="text-muted-foreground/60">{selectedYear}</span>
+            </h1>
           </div>
-          
-          {/* Filters Bar */}
-          <div className="flex flex-wrap gap-3 bg-white p-2 rounded-lg border shadow-sm w-full sm:w-auto">
+
+          {/* Filters */}
+          <div className="grid w-full grid-cols-[1.2fr_1.2fr_1fr] items-center gap-1 rounded-full bg-card p-1.5 shadow-card sm:flex sm:w-auto">
             <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-              <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0 font-medium">
+              <SelectTrigger className="h-9 w-full sm:w-[140px] rounded-full border-none bg-secondary font-medium shadow-none focus:ring-0 focus:ring-offset-0">
                 <SelectValue placeholder="Brand" />
               </SelectTrigger>
               <SelectContent>
@@ -151,11 +163,8 @@ export default function Dashboard() {
                 ))}
               </SelectContent>
             </Select>
-            
-            <div className="w-px h-8 bg-gray-200 hidden sm:block"></div>
-
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[130px] border-none shadow-none focus:ring-0 font-medium">
+              <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-full border-none bg-transparent font-medium shadow-none focus:ring-0 focus:ring-offset-0">
                 <SelectValue placeholder="Month" />
               </SelectTrigger>
               <SelectContent>
@@ -164,9 +173,8 @@ export default function Dashboard() {
                 ))}
               </SelectContent>
             </Select>
-
             <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-[100px] border-none shadow-none focus:ring-0 font-medium">
+              <SelectTrigger className="h-9 w-full sm:w-[96px] rounded-full border-none bg-primary font-medium text-primary-foreground shadow-none focus:ring-0 focus:ring-offset-0">
                 <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
@@ -178,58 +186,78 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Stats Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatsCard
-            title="Pending"
-            value={stats.created_count}
-            icon={Calendar}
-            description="Created this month"
-            className="border-l-4 border-l-yellow-500"
-          />
-          <StatsCard
-            title="Processing"
-            value={stats.processing_count}
-            icon={Loader2}
-            description="Active processing"
-            className="border-l-4 border-l-blue-500"
-          />
-          <StatsCard
-            title="Completed"
-            value={stats.completed_count}
-            icon={CheckCircle2}
-            description="Finished requests"
-            className="border-l-4 border-l-green-500"
-          />
-          <StatsCard
-            title="Sold"
-            value={stats.sold_count}
-            icon={DollarSign}
-            description="Closed sales"
-            className="border-l-4 border-l-green-700"
-          />
+        {/* Hero: conversion */}
+        <section className="relative overflow-hidden rounded-3xl bg-ink p-6 text-white sm:p-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-medium">Conversion</h2>
+              <p className="mt-1 max-w-sm text-sm text-white/60">
+                Share of events that ended in a sale in {monthLabel}, out of {totalRequests} recorded.
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-white/10 px-3 py-1 font-mono text-xs text-white/80">
+              {rejection.toFixed(1)}% rejected
+            </span>
+          </div>
+
+          <div className="mt-10 flex items-end gap-2">
+            <span className="text-7xl font-light leading-none tracking-tighter tabular-nums sm:text-8xl">
+              {loading ? "–" : conversion.toFixed(1)}
+            </span>
+            <span className="mb-2 text-lg text-white/70">%</span>
+          </div>
+
+          {/* Stacked status bar */}
+          <div className="mt-8 flex h-3 w-full gap-0.5 overflow-hidden rounded-full bg-white/10">
+            {breakdown.map((b) =>
+              b.value > 0 ? (
+                <div
+                  key={b.label}
+                  title={`${b.label}: ${b.value}`}
+                  style={{ width: `${pct(b.value)}%`, background: b.color }}
+                />
+              ) : null,
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11px] uppercase tracking-[0.06em] text-white/55">
+            {breakdown.map((b) => (
+              <span key={b.label} className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: b.color }} />
+                {b.label} {b.value}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          <StatsCard title="Pending" value={stats.created_count} icon={Calendar} description="Created this month" tone="amber" />
+          <StatsCard title="Processing" value={stats.processing_count} icon={Loader2} description="Active processing" tone="stone" />
+          <StatsCard title="Completed" value={stats.completed_count} icon={CheckCircle2} description="Finished requests" tone="lime" />
+          <StatsCard title="Sold" value={stats.sold_count} icon={DollarSign} description="Closed sales" tone="ink" />
           <StatsCard
             title="Rejected"
             value={stats.rejected_count}
             icon={XCircle}
             description="Dropped requests"
-            className="border-l-4 border-l-red-500"
+            tone="coral"
+            className="col-span-2 lg:col-span-1"
           />
         </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="col-span-1 lg:col-span-2 shadow-sm">
+        {/* Chart + rates */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Activity Distribution</CardTitle>
+              <CardTitle>Activity distribution</CardTitle>
               <CardDescription>
-                Breakdown of {totalRequests} total events recorded in {months.find(m => m.value === selectedMonth)?.label}.
+                Breakdown of {totalRequests} total events recorded in {monthLabel}.
               </CardDescription>
             </CardHeader>
             <CardContent>
               {loading ? (
-                <div className="flex justify-center items-center h-[300px]">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <div className="flex h-[300px] items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               ) : chartData.length > 0 ? (
                 <div className="h-[300px] w-full">
@@ -239,74 +267,59 @@ export default function Dashboard() {
                         data={chartData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={5}
+                        innerRadius={70}
+                        outerRadius={105}
+                        paddingAngle={3}
+                        cornerRadius={6}
+                        stroke="none"
                         dataKey="value"
                       >
                         {chartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        itemStyle={{ color: '#374151', fontWeight: 600 }}
+                      <Tooltip
+                        contentStyle={{ borderRadius: "14px", border: "none", boxShadow: "0 8px 24px -8px rgb(0 0 0 / 0.18)" }}
+                        itemStyle={{ color: "#1b1b1a", fontWeight: 500 }}
                       />
-                      <Legend 
-                        verticalAlign="bottom" 
-                        height={36} 
-                        iconType="circle"
-                      />
+                      <Legend verticalAlign="bottom" height={36} iconType="circle" iconSize={8} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="flex flex-col justify-center items-center h-[300px] text-muted-foreground bg-gray-50 rounded-lg">
-                  <Car className="h-12 w-12 mb-2 opacity-20" />
-                  <p>No activity found for this period</p>
+                <div className="flex h-[300px] flex-col items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
+                  <Car className="mb-2 h-10 w-10 opacity-25" />
+                  <p className="text-sm">No activity found for this period</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Quick Summary / Side Panel (Optional) */}
-          <Card className="shadow-sm bg-slate-900 text-white border-none">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-white">Monthly Insights</CardTitle>
-              <CardDescription className="text-slate-400">
-                Key performance indicators
-              </CardDescription>
+              <CardTitle>Monthly rates</CardTitle>
+              <CardDescription>Key performance indicators</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <div className="text-sm font-medium text-slate-400 mb-1">Conversion Rate (Sold/Created)</div>
-                <div className="text-3xl font-bold">
-                  {totalRequests > 0 
-                    ? ((stats.sold_count / totalRequests) * 100).toFixed(1) 
-                    : "0.0"}%
+            <CardContent className="space-y-3">
+              {[
+                { label: "Conversion", hint: "Sold / all", value: conversion, bar: "bg-lime" },
+                { label: "Rejection", hint: "Rejected / all", value: rejection, bar: "bg-[#ec8a6b]" },
+              ].map((r) => (
+                <div key={r.label} className="rounded-2xl bg-secondary p-4">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-sm text-muted-foreground">{r.label}</span>
+                    <span className="eyebrow">{r.hint}</span>
+                  </div>
+                  <div className="mt-2 text-3xl font-light tabular-nums">{r.value.toFixed(1)}%</div>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-card">
+                    <div className={`h-full rounded-full ${r.bar}`} style={{ width: `${Math.min(r.value, 100)}%` }} />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="h-px bg-slate-800" />
-              
-              <div>
-                <div className="text-sm font-medium text-slate-400 mb-1">Rejection Rate</div>
-                <div className="text-3xl font-bold">
-                  {totalRequests > 0 
-                    ? ((stats.rejected_count / totalRequests) * 100).toFixed(1) 
-                    : "0.0"}%
-                </div>
-              </div>
-
-              <div className="h-px bg-slate-800" />
-
-              <div className="bg-slate-800/50 p-4 rounded-lg">
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  These stats reflect specific actions taken in 
-                  <span className="text-white font-semibold"> {months.find(m => m.value === selectedMonth)?.label}</span>. 
-                  A car is counted here only if its status changed during this month.
-                </p>
-              </div>
+              ))}
+              <p className="px-1 pt-1 text-xs leading-relaxed text-muted-foreground">
+                These stats reflect actions taken in <span className="font-medium text-foreground">{monthLabel}</span>.
+                A car is counted only if its status changed during this month.
+              </p>
             </CardContent>
           </Card>
         </div>

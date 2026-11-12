@@ -133,7 +133,7 @@ export default function Testdrive() {
         {/* Page Header */}
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">
               Test Drive Requests
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-2">

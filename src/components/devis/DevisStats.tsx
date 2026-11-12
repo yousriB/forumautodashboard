@@ -36,7 +36,7 @@ export const DevisStats: React.FC<DevisStatsProps> = React.memo(
 
     return (
       <div
-        className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 ${
+        className={`grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 ${
           className || ""
         }`}
       >
@@ -45,35 +45,35 @@ export const DevisStats: React.FC<DevisStatsProps> = React.memo(
           value={stats.total}
           icon={FileText}
           description="All time requests"
-          className="border-l-4 border-l-primary"
+          tone="stone"
         />
         <StatsCard
           title="Pending"
           value={stats.pending}
           icon={Calendar}
           description="Awaiting action"
-          className="border-l-4 border-l-yellow-500"
+          tone="amber"
         />
         <StatsCard
           title="Processing"
           value={stats.processing}
           icon={Loader2}
           description="In progress"
-          className="border-l-4 border-l-blue-500"
+          tone="stone"
         />
         <StatsCard
           title="Completed"
           value={stats.completed}
           icon={CheckCircle2}
           description="Finished"
-          className="border-l-4 border-l-green-500"
+          tone="lime"
         />
         <StatsCard
           title="Sold"
           value={stats.sold}
           icon={DollarSign}
           description="Closed deals"
-          className="border-l-4 border-l-green-700"
+          tone="ink"
         />
         {/* We can omit Rejected or add it if needed, layout fits 5 nicely. 
             If we want 6, grid-cols-3 or similar. 
@@ -85,7 +85,7 @@ export const DevisStats: React.FC<DevisStatsProps> = React.memo(
           value={stats.rejected}
           icon={X}
           description="Declined"
-          className="border-l-4 border-l-red-500"
+          tone="coral"
         />
       </div>
     );

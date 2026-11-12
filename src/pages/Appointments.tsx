@@ -286,7 +286,7 @@ export default function Appointments() {
         {/* Header */}
         <header className="flex flex-col items-start gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+            <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">
               Appointment Requests
             </h1>
             <p className="text-sm md:text-base text-muted-foreground mt-1">

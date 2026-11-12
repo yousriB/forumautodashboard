@@ -94,13 +94,13 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
             placeholder="Search by name, email, or car details..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9 bg-white"
+            className="pl-9 input-field h-10 rounded-full"
             maxLength={UI.MAX_SEARCH_LENGTH}
           />
         </div>
 
         {/* Filters - Right Side */}
-        <div className="flex flex-wrap gap-2 bg-white p-2 rounded-lg border shadow-sm w-full lg:w-auto">
+        <div className="flex flex-wrap gap-1 bg-card p-1.5 rounded-full shadow-card w-full lg:w-auto">
           <Select value={brandFilter} onValueChange={onBrandChange}>
             <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0 font-medium">
               <SelectValue placeholder="Brand" />

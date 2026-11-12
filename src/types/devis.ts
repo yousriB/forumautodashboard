@@ -62,11 +62,11 @@ export interface DevisResponse {
 
 // Status colors mapping
 export const STATUS_COLORS = {
-  pending: "bg-warning text-warning-foreground",
-  processing: "bg-primary text-primary-foreground",
-  completed: "bg-success text-success-foreground",
-  rejected: "bg-destructive text-destructive-foreground",
-  sold: "bg-[#eab308] text-white",
+  pending: "border-transparent bg-[#f6ebc8] text-[#7a5a0a] hover:bg-[#f6ebc8]",
+  processing: "border-transparent bg-[#e7e7e4] text-[#3a3a36] hover:bg-[#e7e7e4]",
+  completed: "border-transparent bg-[#e6f5c2] text-[#3d5a0c] hover:bg-[#e6f5c2]",
+  rejected: "border-transparent bg-[#fbe2da] text-[#9a3415] hover:bg-[#fbe2da]",
+  sold: "border-transparent bg-[#1b1b1a] text-[#d4f75a] hover:bg-[#1b1b1a]",
 } as const;
 
 // Status display names

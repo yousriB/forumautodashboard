@@ -10,16 +10,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background-secondary">
+    <div className="relative min-h-screen bg-background-secondary">
+      {/* Soft lime wash in the top-right corner */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 bg-gradient-subtle opacity-70"
+      />
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      
-      <div className="lg:pl-64">
+
+      <div className="relative lg:pl-[17.5rem]">
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        
-        <main className="p-4 lg:p-6">
-          <div className="mx-auto max-w-7xl">
-            {children}
-          </div>
+
+        <main className="px-4 pb-10 pt-4 lg:px-6">
+          <div className="mx-auto max-w-7xl animate-fade-in">{children}</div>
         </main>
       </div>
     </div>

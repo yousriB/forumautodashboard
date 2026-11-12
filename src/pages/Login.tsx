@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Car, Lock, Mail } from "lucide-react";
+import { ArrowRight, Lock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { BrandMark } from "@/components/dashboard/BrandMark";
 import { useUser } from "@/context/UserContext";
 import { supabase } from "@/lib/supabaseClient";
 import { logSecurityEvent } from "@/lib/security-logger";
@@ -109,77 +109,101 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
-      <div className="w-full max-w-md animate-scale-in">
-        <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-primary mb-4">
-            <Car className="h-8 w-8 text-white" />
+    <div className="min-h-screen bg-background-secondary p-3">
+      <div className="grid min-h-[calc(100vh-1.5rem)] gap-3 lg:grid-cols-[1.1fr_1fr]">
+        {/* Brand panel */}
+        <section className="relative hidden overflow-hidden rounded-3xl bg-ink p-10 text-white lg:flex lg:flex-col">
+          <div className="flex items-center gap-2.5">
+            <BrandMark className="bg-white/10" />
+            <span className="text-[15px] font-semibold tracking-tight">forum auto</span>
           </div>
-          <h1 className="text-3xl font-bold text-foreground">Tableau de bord Forum</h1>
-          <p className="text-muted-foreground mt-2">Connectez-vous à votre espace personnel</p>
-        </div>
 
-        <Card className="dashboard-card">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-semibold">Bienvenue</CardTitle>
-            <CardDescription>
-              Entrez vos identifiants pour accéder à votre compte
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="mt-auto max-w-md">
+            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-white/50">Espace ventes</p>
+            <h1 className="mt-3 text-5xl font-light leading-[1.05] tracking-tight">
+              Chaque demande,
+              <br />
+              <span className="text-white/45">sur un seul écran.</span>
+            </h1>
+            <p className="mt-5 text-sm leading-relaxed text-white/60">
+              Devis, essais et messages clients de tout le showroom, réunis au même endroit.
+            </p>
+          </div>
+
+          <div className="mt-10 flex gap-1.5" aria-hidden="true">
+            {Array.from({ length: 28 }, (_, i) => (
+              <span
+                key={i}
+                className={i === 19 ? "h-8 w-1.5 rounded-full bg-lime" : "h-8 w-1.5 rounded-full bg-white/15"}
+                style={{ height: `${14 + ((i * 37) % 22)}px` }}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Form */}
+        <section className="flex items-center justify-center rounded-3xl bg-card px-6 py-12 shadow-card">
+          <div className="w-full max-w-sm animate-scale-in">
+            <BrandMark size="lg" className="mb-8 lg:hidden" />
+            <p className="eyebrow flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-lime" />
+              Espace personnel
+            </p>
+            <h2 className="mt-3 text-3xl font-medium tracking-tight text-foreground">Bienvenue.</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Entrez vos identifiants pour accéder au tableau de bord.
+            </p>
+
+            <form onSubmit={handleSubmit} className="mt-8 space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Adresse email</Label>
+                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">Adresse email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
+                    autoComplete="email"
                     placeholder="votre@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-9 input-field"
+                    className="input-field h-12 pl-10"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe</Label>
+                <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">Mot de passe</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="password"
                     type="password"
+                    autoComplete="current-password"
                     placeholder="Saisissez votre mot de passe"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-9 input-field"
+                    className="input-field h-12 pl-10"
                     required
                   />
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full btn-primary font-medium"
-                disabled={loading}
-              >
-                {loading ? "Connexion..." : "Se connecter"}
+              {error && (
+                <p role="alert" className="rounded-xl bg-[#fbe2da] px-3 py-2 text-sm text-[#9a3415]">
+                  {error}
+                </p>
+              )}
+
+              <Button type="submit" className="h-12 w-full text-[15px]" disabled={loading}>
+                {loading ? "Connexion…" : "Se connecter"}
+                {!loading && <ArrowRight className="h-4 w-4" />}
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-red-500 text-center">{error}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="mt-8 text-center">
-          <p className="text-xs text-muted-foreground">
-            © 2024 AutoDealer. Tous droits réservés.
-          </p>
-        </div>
+            <p className="eyebrow mt-12">© {new Date().getFullYear()} Forum Auto</p>
+          </div>
+        </section>
       </div>
     </div>
   );

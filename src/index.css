@@ -7,89 +7,81 @@
 /* @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'); */
 
 @layer base {
+  /* Forum Auto — warm neutral surfaces, ink-black actions, lime highlight. */
   :root {
-    /* Brand Colors - Modern automotive professional palette */
-    --primary: 214 95% 56%; /* Modern blue #2563eb */
-    --primary-foreground: 0 0% 100%;
-    --primary-light: 214 85% 65%;
-    --primary-dark: 214 95% 46%;
-    
-    /* Accent Colors */
-    --accent: 188 91% 42%; /* Professional teal #0891b2 */
-    --accent-foreground: 0 0% 100%;
-    --accent-light: 188 81% 52%;
-    
-    /* Background & Surfaces */
+    /* Ink (primary actions, active nav) */
+    --primary: 60 3% 11%;
+    --primary-foreground: 60 9% 98%;
+    --primary-light: 60 2% 30%;
+    --primary-dark: 60 3% 6%;
+
+    /* Lime highlight + its pale wash (hover / selected rows) */
+    --lime: 76 88% 56%;
+    --lime-foreground: 60 3% 11%;
+    --accent: 74 70% 92%;
+    --accent-foreground: 60 3% 11%;
+    --accent-light: 76 80% 96%;
+
+    /* Surfaces */
     --background: 0 0% 100%;
-    --background-secondary: 220 13% 97%; /* Subtle gray background */
-    --foreground: 225 25% 15%; /* Dark gray text */
-    
-    /* Card & UI Elements */
+    --background-secondary: 60 4% 94%;
+    --foreground: 60 3% 11%;
+
     --card: 0 0% 100%;
-    --card-foreground: 225 25% 15%;
-    --card-hover: 220 13% 98%;
-    
-    /* Popover & Dialogs */
+    --card-foreground: 60 3% 11%;
+    --card-hover: 60 5% 99%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 225 25% 15%;
-    
-    /* Secondary Elements */
-    --secondary: 220 13% 95%;
-    --secondary-foreground: 225 25% 25%;
-    --secondary-hover: 220 13% 92%;
-    
-    /* Muted Elements */
-    --muted: 220 13% 95%;
-    --muted-foreground: 220 9% 52%;
-    
-    /* Status Colors */
-    --success: 142 76% 36%;
+    --popover-foreground: 60 3% 11%;
+
+    --secondary: 60 5% 95%;
+    --secondary-foreground: 60 3% 16%;
+    --secondary-hover: 60 5% 92%;
+
+    --muted: 60 5% 95.5%;
+    --muted-foreground: 60 2% 44%;
+
+    /* Status */
+    --success: 88 55% 38%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 38 25% 15%;
-    --destructive: 0 84% 60%;
+    --warning: 40 90% 52%;
+    --warning-foreground: 40 60% 14%;
+    --destructive: 8 72% 54%;
     --destructive-foreground: 0 0% 100%;
-    
-    /* Borders & Inputs */
-    --border: 220 13% 88%;
-    --border-light: 220 13% 92%;
-    --input: 220 13% 88%;
-    --input-focus: 214 95% 56%;
-    --ring: 214 95% 56%;
-    
+
+    /* Lines & focus */
+    --border: 60 5% 90%;
+    --border-light: 60 5% 93%;
+    --input: 60 5% 88%;
+    --input-focus: 60 3% 11%;
+    --ring: 60 3% 11%;
+
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(214 95% 56%), hsl(188 91% 42%));
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(220 13% 98%));
-    --gradient-subtle: linear-gradient(180deg, hsl(220 13% 98%), hsl(220 13% 95%));
-    
-    /* Shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(220 13% 15% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(220 13% 15% / 0.1), 0 2px 4px -1px hsl(220 13% 15% / 0.06);
-    --shadow-lg: 0 10px 15px -3px hsl(220 13% 15% / 0.1), 0 4px 6px -2px hsl(220 13% 15% / 0.05);
-    --shadow-card: 0 1px 3px 0 hsl(220 13% 15% / 0.1), 0 1px 2px 0 hsl(220 13% 15% / 0.06);
-    --shadow-hover: 0 4px 8px 0 hsl(214 95% 56% / 0.15);
-    
-    /* Animation & Transitions */
+    --gradient-primary: linear-gradient(135deg, hsl(60 3% 14%), hsl(60 3% 6%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(60 5% 99%));
+    --gradient-subtle: radial-gradient(120% 80% at 100% 0%, hsl(76 70% 90%) 0%, hsl(60 4% 94%) 55%);
+    --gradient-ink: radial-gradient(90% 120% at 85% 70%, hsl(76 75% 52% / 0.9) 0%, hsl(76 60% 30% / 0.35) 35%, transparent 65%), linear-gradient(135deg, hsl(60 3% 9%), hsl(60 3% 13%));
+
+    /* Shadows — soft and low */
+    --shadow-sm: 0 1px 2px 0 hsl(60 3% 11% / 0.04);
+    --shadow-md: 0 4px 16px -4px hsl(60 3% 11% / 0.08);
+    --shadow-lg: 0 16px 40px -12px hsl(60 3% 11% / 0.18);
+    --shadow-card: 0 1px 2px 0 hsl(60 3% 11% / 0.03), 0 0 0 1px hsl(60 3% 11% / 0.03);
+    --shadow-hover: 0 8px 24px -8px hsl(60 3% 11% / 0.12);
+
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-fast: all 0.15s ease-out;
 
-    --radius: 0.5rem;
+    --radius: 1rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 60 2% 30%;
+    --sidebar-primary: 60 3% 11%;
+    --sidebar-primary-foreground: 60 9% 98%;
+    --sidebar-accent: 60 5% 95%;
+    --sidebar-accent-foreground: 60 3% 11%;
+    --sidebar-border: 60 5% 90%;
+    --sidebar-ring: 60 3% 11%;
   }
 
   .dark {
@@ -138,44 +130,61 @@
 
   body {
     @apply bg-background-secondary text-foreground font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
   }
-  
+
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
+  }
+
   html {
     scroll-behavior: smooth;
+  }
+
+  ::selection {
+    background: hsl(var(--lime) / 0.6);
   }
 }
 
 @layer components {
-  /* Custom component styles using design system tokens */
   .dashboard-card {
-    @apply bg-card border border-border rounded-lg shadow-card hover:shadow-hover transition-all duration-300 hover:bg-card-hover;
+    @apply bg-card rounded-3xl shadow-card transition-all duration-300 hover:shadow-hover;
   }
-  
+
   .stat-card {
-    @apply bg-gradient-card border border-border-light rounded-xl p-6 shadow-card hover:shadow-hover transition-all duration-300;
+    @apply bg-card rounded-3xl p-5 shadow-card transition-all duration-300 hover:shadow-hover;
   }
-  
+
   .sidebar-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary-hover transition-all duration-200;
+    @apply flex items-center gap-3 rounded-full px-4 py-2.5 text-sm text-muted-foreground transition-all duration-200 hover:bg-secondary hover:text-foreground;
   }
-  
+
   .sidebar-item-active {
-    @apply bg-primary text-primary-foreground shadow-sm;
+    @apply bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground;
   }
-  
+
   .table-row-hover {
-    @apply hover:bg-secondary-hover transition-colors duration-150;
+    @apply transition-colors duration-150 hover:bg-muted/70;
   }
-  
+
   .btn-primary {
-    @apply bg-gradient-primary text-primary-foreground shadow-sm hover:shadow-hover transition-all duration-200;
+    @apply rounded-full bg-primary text-primary-foreground transition-all duration-200 hover:bg-primary/90;
   }
-  
+
   .btn-secondary {
-    @apply bg-secondary text-secondary-foreground border border-border hover:bg-secondary-hover transition-all duration-200;
+    @apply rounded-full bg-secondary text-secondary-foreground transition-all duration-200 hover:bg-secondary-hover;
   }
-  
+
   .input-field {
-    @apply bg-background border border-input rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:border-input-focus focus:ring-2 focus:ring-input-focus/20 transition-all duration-200;
+    @apply rounded-xl border border-transparent bg-muted px-3 py-2 text-foreground placeholder:text-muted-foreground transition-all duration-200 focus:border-input focus:bg-background;
+  }
+
+  /* Small uppercase mono label, used for dates and section eyebrows */
+  .eyebrow {
+    @apply font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground;
+  }
+
+  .bg-ink {
+    background: var(--gradient-ink);
   }
 }

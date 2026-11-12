@@ -62,11 +62,11 @@ export const DevisTable: React.FC<DevisTableProps> = React.memo(
     }
 
     return (
-      <Card className={`shadow-md border-gray-200 rounded-xl ${className || ""}`}>
+      <Card className={`overflow-hidden ${className || ""}`}>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table className="min-w-[600px]">
-              <TableHeader className="bg-gray-50/70 dark:bg-gray-900/50">
+              <TableHeader className="bg-secondary/60">
                 <TableRow>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Customer</TableHead>
                   <TableHead className="hidden md:table-cell font-semibold text-gray-700 dark:text-gray-300">Vehicle</TableHead>
@@ -101,13 +101,13 @@ export const DevisTable: React.FC<DevisTableProps> = React.memo(
             </Table>
 
             {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t bg-gray-50 dark:bg-gray-800 rounded-b-xl">
+              <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t bg-secondary/60">
                 <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 sm:mb-0">
-                  Showing <span className="font-semibold text-gray-900 dark:text-white">{startIndex + 1}</span> to{" "}
-                  <span className="font-semibold text-gray-900 dark:text-white">
+                  Showing <span className="font-semibold text-foreground">{startIndex + 1}</span> to{" "}
+                  <span className="font-semibold text-foreground">
                     {Math.min(endIndex, totalItems)}
                   </span>{" "}
-                  of <span className="font-semibold text-gray-900 dark:text-white">{totalItems}</span> results
+                  of <span className="font-semibold text-foreground">{totalItems}</span> results
                 </div>
                 <Pagination>
                   <PaginationContent>

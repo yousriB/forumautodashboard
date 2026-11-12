@@ -14,7 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Geist', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['"Geist Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -22,6 +23,10 @@ export default {
         input: "hsl(var(--input))",
         "input-focus": "hsl(var(--input-focus))",
         ring: "hsl(var(--ring))",
+        lime: {
+          DEFAULT: "hsl(var(--lime))",
+          foreground: "hsl(var(--lime-foreground))",
+        },
         background: "hsl(var(--background))",
         "background-secondary": "hsl(var(--background-secondary))",
         foreground: "hsl(var(--foreground))",
@@ -86,6 +91,7 @@ export default {
         'gradient-primary': 'var(--gradient-primary)',
         'gradient-card': 'var(--gradient-card)',
         'gradient-subtle': 'var(--gradient-subtle)',
+        'gradient-ink': 'var(--gradient-ink)',
       },
       boxShadow: {
         'card': 'var(--shadow-card)',

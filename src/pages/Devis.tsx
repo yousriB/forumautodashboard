@@ -278,9 +278,9 @@ export default function Devis() {
 
             <div>
 
-              <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+              <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">
 
-                Performa Requests
+                Proforma requests
 
               </h1>
 
@@ -354,7 +354,7 @@ export default function Devis() {
 
           ) : filters.filteredRequests.length === 0 ? (
 
-            <Card className="shadow-sm">
+            <Card>
 
               <CardContent className="p-6">
 
@@ -410,7 +410,7 @@ export default function Devis() {
 
           ) : (
 
-            <Card className="shadow-sm border-none bg-transparent">
+            <Card className="shadow-none bg-transparent">
 
               <DevisTable
 

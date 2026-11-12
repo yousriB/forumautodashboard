@@ -35,7 +35,7 @@ export const UserTable = ({
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="overflow-hidden rounded-3xl">
       <Table>
         <TableHeader>
           <TableRow>

@@ -117,7 +117,7 @@ const Newsletters = () => {
         {/* Page Header */}
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Newsletter Subscribers</h1>
+            <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">Newsletter Subscribers</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-2">
               Manage your newsletter subscribers
             </p>
@@ -146,14 +146,14 @@ const Newsletters = () => {
         </div>
 
         {/* Subscriptions Table */}
-        <div className="rounded-md border bg-white">
+        <div className="overflow-hidden rounded-3xl bg-card shadow-card">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">
                   <input 
                     type="checkbox" 
-                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    className="h-4 w-4 rounded border-input accent-[#1b1b1a]"
                     onChange={(e) => handleSelectAll(e.target.checked)}
                     checked={selectedEmails.length > 0 && selectedEmails.length === filteredSubscriptions.length}
                   />
@@ -191,7 +191,7 @@ const Newsletters = () => {
                     <TableCell>
                       <input 
                         type="checkbox" 
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        className="h-4 w-4 rounded border-input accent-[#1b1b1a]"
                         checked={selectedEmails.includes(subscription.email)}
                         onChange={(e) => handleSelectEmail(subscription.email, e.target.checked)}
                       />
@@ -219,11 +219,11 @@ const Newsletters = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-card p-4 rounded-lg border">
+          <div className="stat-card">
             <h3 className="text-sm font-medium text-muted-foreground">Total Subscribers</h3>
             <p className="text-2xl font-bold">{subscriptions.length}</p>
           </div>
-          <div className="bg-card p-4 rounded-lg border">
+          <div className="stat-card">
             <h3 className="text-sm font-medium text-muted-foreground">New This Month</h3>
             <p className="text-2xl font-bold">
               {subscriptions.filter(sub => {
@@ -271,7 +271,7 @@ const Newsletters = () => {
                 <input
                   type="checkbox"
                   id="sendToAll"
-                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  className="h-4 w-4 rounded border-input accent-[#1b1b1a]"
                   checked={emailContent.isBulk}
                   onChange={(e) => setEmailContent({...emailContent, isBulk: e.target.checked})}
                 />

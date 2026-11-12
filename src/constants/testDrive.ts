@@ -8,10 +8,10 @@ export const TEST_DRIVE_STATUS = {
 } as const;
 
 export const STATUS_COLORS = {
-  pending: "bg-warning text-warning-foreground",
-  confirmed: "bg-primary text-primary-foreground", 
-  completed: "bg-success text-success-foreground",
-  cancelled: "bg-destructive text-destructive-foreground",
+  pending: "border-transparent bg-[#f6ebc8] text-[#7a5a0a] hover:bg-[#f6ebc8]",
+  confirmed: "border-transparent bg-[#1b1b1a] text-[#d4f75a] hover:bg-[#1b1b1a]",
+  completed: "border-transparent bg-[#e6f5c2] text-[#3d5a0c] hover:bg-[#e6f5c2]",
+  cancelled: "border-transparent bg-[#fbe2da] text-[#9a3415] hover:bg-[#fbe2da]",
 } as const;
 
 export const STATUS_ICONS = {
