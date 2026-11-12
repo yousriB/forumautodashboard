@@ -5,18 +5,20 @@
 // JWT; we check that the caller is an admin in public.users before acting.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const ALLOWED_ORIGINS = [
-  "http://localhost:8080",
-  "http://localhost:5173",
-];
+// Prefer the new secret key (sb_secret_...), fall back to the legacy service_role JWT.
+function serviceKey(): string {
+  try {
+    const k = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}")?.default;
+    if (k) return k;
+  } catch { /* fall through */ }
+  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+}
 
-function corsHeaders(origin: string | null) {
-  const allowed =
-    origin &&
-    (ALLOWED_ORIGINS.includes(origin) || /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin) ||
-      /^https:\/\/([a-z0-9-]+\.)?forumautogabes\.com$/.test(origin));
+// CORS is not the security boundary here: every request must carry the
+// session JWT of a signed-in admin (checked below), so any origin may call.
+function corsHeaders(_origin: string | null) {
   return {
-    "Access-Control-Allow-Origin": allowed ? origin! : "null",
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
@@ -35,8 +37,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return reply(405, { error: "Method not allowed" });
 
   const url = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const admin = createClient(url, serviceKey(), { auth: { persistSession: false, autoRefreshToken: false } });
 
   // 1. Who is calling?
   const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");

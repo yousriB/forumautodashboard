@@ -8,6 +8,17 @@
 // internal error messages are no longer returned to the caller.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
+// Prefer the new secret key (sb_secret_...), fall back to the legacy service_role JWT.
+function serviceKey(): string {
+  try {
+    const k = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}")?.default;
+    if (k) return k;
+  } catch { /* fall through */ }
+  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+}
+// Reports which kind of key is in use (never the key itself), to check the migration.
+const keyKind = () => (serviceKey().startsWith("sb_secret_") ? "secret" : "legacy")
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -32,13 +43,13 @@ Deno.serve(async (req) => {
   const json = (status: number, body: unknown) =>
     new Response(JSON.stringify(body), {
       status,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Key-Kind': keyKind() },
     })
 
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      serviceKey(),
     )
 
     const text = await req.text()
