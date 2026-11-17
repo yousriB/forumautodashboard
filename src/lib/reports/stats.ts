@@ -317,7 +317,7 @@ export function buildDetailTables(data: ReportData, brands: BrandInfo[], staffEm
     STATUS_LABELS[r.status] ?? r.status,
     r.payment_mode ? PAYMENT_MODE_LABELS[r.payment_mode] ?? r.payment_mode : null,
     d(r.sold_at),
-    d(r.completed_at),
+    d(r.status === "completed" ? r.completed_at : null), // old-workflow completed_at meant "sale confirmed"
     staffEmail(r.responded_by),
   ];
 

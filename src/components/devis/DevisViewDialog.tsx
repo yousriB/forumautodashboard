@@ -382,7 +382,9 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                     { label: "Reçue le", value: request.created_at, empty: "—" },
                     { label: `${STATUS_LABELS.processing} le`, value: request.processed_at, empty: "Non traitée" },
                     { label: `${STATUS_LABELS.sold} le`, value: request.sold_at, empty: "Pas de vente confirmée" },
-                    { label: `${STATUS_LABELS.completed} le`, value: request.completed_at, empty: "Non livré" },
+                    // Old-workflow sales may carry a completed_at that meant "sale confirmed":
+                    // only a request whose status is Livré has a delivery date.
+                    { label: `${STATUS_LABELS.completed} le`, value: request.status === "completed" ? request.completed_at : null, empty: "Non livré" },
                     { label: `${STATUS_LABELS.rejected} le`, value: request.rejected_at, empty: "Non annulé" },
                   ].map((row) => (
                     <div key={row.label}>
