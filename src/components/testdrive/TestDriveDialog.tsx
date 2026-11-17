@@ -11,6 +11,7 @@ import { TestDriveRequest, TestDriveStatus } from "@/types/testDrive";
 import { STATUS_COLORS, STATUS_ICONS } from "@/constants/testDrive";
 import { formatDate } from "@/utils/testDriveUtils";
 import { TestDriveActions } from "./TestDriveActions";
+import { TEST_DRIVE_STATUS_LABELS } from "@/lib/reports/types";
 
 interface TestDriveDialogProps {
   request: TestDriveRequest | null;
@@ -53,10 +54,10 @@ export const TestDriveDialog = React.memo<TestDriveDialogProps>(
         <DialogContent className="max-w-xs sm:max-w-lg lg:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">
-              Test Drive Request Details
+              Détails de la demande de test drive
             </DialogTitle>
             <DialogDescription className="text-sm">
-              Manage this test drive request
+              Gérer cette demande de test drive
             </DialogDescription>
           </DialogHeader>
 
@@ -65,12 +66,12 @@ export const TestDriveDialog = React.memo<TestDriveDialogProps>(
               {/* Customer Information */}
               <div className="space-y-3 sm:space-y-4">
                 <h4 className="font-medium text-foreground text-sm sm:text-base">
-                  Customer Information
+                  Informations client
                 </h4>
                 <div className="space-y-2 sm:space-y-3">
                   <div>
                     <label className="text-xs sm:text-sm text-muted-foreground">
-                      Full Name
+                      Nom complet
                     </label>
                     <p className="font-medium text-sm sm:text-base">
                       {request.full_name}
@@ -86,7 +87,7 @@ export const TestDriveDialog = React.memo<TestDriveDialogProps>(
                   </div>
                   <div>
                     <label className="text-xs sm:text-sm text-muted-foreground">
-                      Phone
+                      Téléphone
                     </label>
                     <p className="font-medium text-sm sm:text-base">
                       {request.phone}
@@ -98,12 +99,12 @@ export const TestDriveDialog = React.memo<TestDriveDialogProps>(
               {/* Request Details */}
               <div className="space-y-3 sm:space-y-4">
                 <h4 className="font-medium text-foreground text-sm sm:text-base">
-                  Request Details
+                  Détails de la demande
                 </h4>
                 <div className="space-y-2 sm:space-y-3">
                   <div>
                     <label className="text-xs sm:text-sm text-muted-foreground">
-                      Car Model
+                      Modèle
                     </label>
                     <p className="font-medium text-sm sm:text-base">
                       {request.car_model}
@@ -111,15 +112,15 @@ export const TestDriveDialog = React.memo<TestDriveDialogProps>(
                   </div>
                   <div>
                     <label className="text-xs sm:text-sm text-muted-foreground">
-                      Request Date
+                      Date de la demande
                     </label>
                     <p className="font-medium text-sm sm:text-base">
-                      {new Date(request.created_at).toLocaleString()}
+                      {new Date(request.created_at).toLocaleString("fr-FR")}
                     </p>
                   </div>
                   <div>
                     <label className="text-xs sm:text-sm text-muted-foreground">
-                      Current Status
+                      Statut actuel
                     </label>
                     <div className="mt-1">
                       <Badge
@@ -128,7 +129,7 @@ export const TestDriveDialog = React.memo<TestDriveDialogProps>(
                         } text-xs sm:text-sm`}
                       >
                         <StatusIcon className="h-3 w-3 mr-1" />
-                        {request.status}
+                        {TEST_DRIVE_STATUS_LABELS[request.status] ?? request.status}
                       </Badge>
                     </div>
                   </div>

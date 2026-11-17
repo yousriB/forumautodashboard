@@ -1,4 +1,6 @@
-// admin-users: create / delete staff accounts for the Sales Dashboard.
+// admin-users: create / delete staff accounts and reset their password for
+// the Sales Dashboard. Brand lists of existing accounts are changed through
+// the set_user_brands() RPC instead (admin-only, checked in the database).
 //
 // The service-role key lives only here (SUPABASE_SERVICE_ROLE_KEY is injected
 // by Supabase into every edge function). The browser sends its own session
@@ -62,30 +64,78 @@ Deno.serve(async (req) => {
   }
 
   // 3. Act
+  // Only accounts with a Sales Dashboard profile can be acted on (never, say,
+  // an atelier-only account). Most profiles share the auth user's id; older
+  // ones only match by email.
+  async function resolveAuthId(profileId: string): Promise<string | null> {
+    const { data: target } = await admin.from("users").select("email").eq("id", profileId).maybeSingle();
+    if (!target) return null;
+    const { data: direct } = await admin.auth.admin.getUserById(profileId);
+    if (direct?.user) return profileId;
+    const targetEmail = target.email?.toLowerCase();
+    if (!targetEmail) return null;
+    const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    return list?.users.find((u) => u.email?.toLowerCase() === targetEmail)?.id ?? null;
+  }
+
   if (body.action === "create") {
     const email = String(body.email ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
     const role = String(body.role ?? "");
-    const brand = body.brand ? String(body.brand).slice(0, 50) : null;
+    // `brands` (array) is current; `brand` (string) is accepted from old clients.
+    const rawBrands = Array.isArray(body.brands) ? body.brands : body.brand ? [body.brand] : [];
+    const brands = [...new Set(rawBrands.map((b) => String(b).trim().toUpperCase()).filter(Boolean))].sort();
     if (!EMAIL_RE.test(email) || email.length > 254) return reply(400, { error: "Email invalide" });
     if (password.length < 8 || password.length > 72) return reply(400, { error: "Mot de passe: 8 à 72 caractères" });
     if (!ROLES.includes(role)) return reply(400, { error: "Rôle invalide" });
+    if (role === "sales") {
+      if (brands.length === 0) return reply(400, { error: "Sélectionnez au moins une marque" });
+      if (brands.length > 50) return reply(400, { error: "Trop de marques" });
+      const { data: known } = await admin.from("brands").select("code").eq("active", true).in("code", brands);
+      const knownSet = new Set((known ?? []).map((b) => b.code));
+      const bad = brands.find((b) => !knownSet.has(b));
+      if (bad) return reply(400, { error: `Marque invalide ou inactive : ${bad}` });
+    }
+    const assigned = role === "sales" ? brands : [];
 
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email, password, email_confirm: true, user_metadata: { role, brand },
+      email, password, email_confirm: true, user_metadata: { role },
     });
     if (createErr || !created.user) return reply(400, { error: createErr?.message ?? "Création impossible" });
 
     const { data: profile, error: profErr } = await admin
       .from("users")
-      .insert({ id: created.user.id, email, role, brand })
+      .insert({ id: created.user.id, email, role, brand: assigned[0] ?? null })
       .select("id, email, role, brand, created_at")
       .single();
     if (profErr) {
       await admin.auth.admin.deleteUser(created.user.id); // roll back the auth account
       return reply(500, { error: "Création du profil impossible" });
     }
-    return reply(200, { user: profile });
+
+    if (assigned.length > 0) {
+      const { error: brandErr } = await admin
+        .from("user_brands")
+        .insert(assigned.map((brand) => ({ user_id: created.user.id, brand })));
+      if (brandErr) {
+        await admin.from("users").delete().eq("id", created.user.id);
+        await admin.auth.admin.deleteUser(created.user.id);
+        return reply(500, { error: "Attribution des marques impossible" });
+      }
+    }
+    return reply(200, { user: { ...profile, brands: assigned } });
+  }
+
+  if (body.action === "set_password") {
+    const id = String(body.id ?? "");
+    const password = String(body.password ?? "");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return reply(400, { error: "Identifiant invalide" });
+    if (password.length < 8 || password.length > 72) return reply(400, { error: "Mot de passe: 8 à 72 caractères" });
+    const authId = await resolveAuthId(id);
+    if (!authId) return reply(404, { error: "Compte introuvable" });
+    const { error: pwErr } = await admin.auth.admin.updateUserById(authId, { password });
+    if (pwErr) return reply(400, { error: pwErr.message });
+    return reply(200, { ok: true });
   }
 
   if (body.action === "delete") {
@@ -93,18 +143,7 @@ Deno.serve(async (req) => {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return reply(400, { error: "Identifiant invalide" });
     if (id === who.user.id) return reply(400, { error: "Impossible de supprimer votre propre compte" });
 
-    // Most profiles share the auth user's id; older ones only match by email.
-    const { data: target } = await admin.from("users").select("email").eq("id", id).maybeSingle();
-    let authId: string | null = id;
-    const { data: direct } = await admin.auth.admin.getUserById(id);
-    if (!direct?.user) {
-      authId = null;
-      const targetEmail = target?.email?.toLowerCase();
-      if (targetEmail) {
-        const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-        authId = list?.users.find((u) => u.email?.toLowerCase() === targetEmail)?.id ?? null;
-      }
-    }
+    const authId = await resolveAuthId(id);
     if (authId === who.user.id) return reply(400, { error: "Impossible de supprimer votre propre compte" });
     if (authId) {
       const { error: delErr } = await admin.auth.admin.deleteUser(authId);

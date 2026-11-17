@@ -16,8 +16,8 @@ export const queryKeys = {
     list: (
       type: DevisType | "all",
       userRole: string | undefined,
-      userBrand: string | null | undefined
-    ) => ["devis", type, userRole ?? null, userBrand ?? null] as const,
+      userBrands: string[] | undefined
+    ) => ["devis", type, userRole ?? null, (userBrands ?? []).join("|")] as const,
   },
 
   // Test drive requests
@@ -43,6 +43,16 @@ export const queryKeys = {
   // Users
   users: {
     all: ["users"] as const,
+  },
+
+  // Brand catalogue
+  brands: {
+    all: ["brands"] as const,
+  },
+
+  // Export & Rapports
+  reports: {
+    data: (config: string) => ["reports", config] as const,
   },
 
   // Dashboard RPC stats

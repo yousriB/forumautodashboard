@@ -43,7 +43,11 @@ export const filterTestDriveRequests = (
     if (filters.statusFilter !== "all" && cleanStatus !== filters.statusFilter) {
       return false;
     }
-    
+
+    if (filters.brandFilter && filters.brandFilter !== "all" && request.car_brand !== filters.brandFilter) {
+      return false;
+    }
+
     return true;
   });
 };
@@ -62,32 +66,28 @@ export const calculateTestDriveStats = (requests: TestDriveRequest[]): TestDrive
 };
 
 /**
- * Filter requests by brand for sales users
+ * Keep only the requests of one brand ("all" keeps everything).
  */
 export const filterByBrand = (
-  requests: TestDriveRequest[], 
+  requests: TestDriveRequest[],
   brand: string
 ): TestDriveRequest[] => {
-  if (!brand) return requests;
-  
-  const brandLower = brand.toLowerCase();
-  return requests.filter(request => 
-    request.car_model && request.car_model.toLowerCase().includes(brandLower)
-  );
+  if (!brand || brand === "all") return requests;
+  return requests.filter((request) => request.car_brand === brand);
 };
 
 /**
  * Format date for display
  */
 export const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString();
+  return new Date(dateString).toLocaleDateString("fr-FR");
 };
 
 /**
  * Format time for display
  */
 export const formatTime = (dateString: string): string => {
-  return new Date(dateString).toLocaleTimeString([], { 
+  return new Date(dateString).toLocaleTimeString("fr-FR", { 
     hour: '2-digit', 
     minute: '2-digit' 
   });
@@ -97,19 +97,19 @@ export const formatTime = (dateString: string): string => {
  * Generate email body for test drive request
  */
 export const generateEmailBody = (request: TestDriveRequest): string => {
-  return `Dear ${request.full_name},
+  return `Bonjour ${request.full_name},
 
-Thank you for your test drive request for the ${request.car_model}.
+Merci pour votre demande d'essai du ${request.car_model}.
 
-We will contact you soon to schedule your test drive appointment.
+Nous vous contacterons très prochainement pour fixer la date de votre essai.
 
-Best regards,
-AutoDealer Team`;
+Cordialement,
+Forum Auto Gabès`;
 };
 
 /**
  * Generate email subject for test drive request
  */
 export const generateEmailSubject = (request: TestDriveRequest): string => {
-  return `Test Drive Request - ${request.car_model}`;
+  return `Demande de test drive - ${request.car_model}`;
 };

@@ -55,6 +55,13 @@ interface AppointmentRequest {
 
 type AppointmentStatus = AppointmentRequest["status"];
 
+const statusLabels: Record<AppointmentRequest["status"], string> = {
+  pending: "En attente",
+  confirmed: "Confirmé",
+  completed: "Terminé",
+  cancelled: "Annulé",
+};
+
 const statusColors = {
   pending: "bg-warning/10 text-warning",
   confirmed: "bg-primary/10 text-primary",
@@ -156,7 +163,7 @@ export default function Appointments() {
     onError: (_e, _v, ctx) => {
       if (ctx?.previous)
         queryClient.setQueryData(queryKeys.appointments.all, ctx.previous);
-      setError("Failed to update appointment status");
+      setError("Impossible de modifier le statut du rendez-vous");
     },
     onSuccess: () => {
       setIsAppointmentDetailsDialogOpen(false);
@@ -204,7 +211,7 @@ export default function Appointments() {
     onError: (_e, _v, ctx) => {
       if (ctx?.previous)
         queryClient.setQueryData(queryKeys.appointments.all, ctx.previous);
-      setError("Failed to reschedule appointment");
+      setError("Impossible de reprogrammer le rendez-vous");
     },
     onSuccess: () => {
       setIsRescheduleModalOpen(false);
@@ -241,7 +248,7 @@ export default function Appointments() {
       !rescheduleData.date ||
       !rescheduleData.time
     ) {
-      alert("Please select both date and time.");
+      alert("Veuillez choisir une date et une heure.");
       return;
     }
     if (rescheduleMutation.isPending) return;
@@ -275,9 +282,7 @@ export default function Appointments() {
   };
 
   const formattedSelectedDate = selectedDate
-    ? `${selectedDate.getFullYear()}-${String(
-        selectedDate.getMonth() + 1
-      ).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`
+    ? selectedDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : "";
 
   return (
@@ -287,31 +292,31 @@ export default function Appointments() {
         <header className="flex flex-col items-start gap-4">
           <div>
             <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">
-              Appointment Requests
+              Rendez-vous atelier
             </h1>
             <p className="text-sm md:text-base text-muted-foreground mt-1">
-              Manage customer appointments and schedule new visits
+              Gérer les demandes de rendez-vous et planifier les visites
             </p>
           </div>
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 w-full">
             <StatsCard
-              title="Pending"
+              title="En attente"
               value={appointments.filter((a) => a.status === "pending").length.toString()}
               icon={Clock}
             />
             <StatsCard
-              title="Confirmed"
+              title="Confirmés"
               value={appointments.filter((a) => a.status === "confirmed").length.toString()}
               icon={CheckCircle}
             />
             <StatsCard
-              title="Completed"
+              title="Terminés"
               value={appointments.filter((a) => a.status === "completed").length.toString()}
               icon={CheckCircle}
             />
             <StatsCard
-              title="Cancelled"
+              title="Annulés"
               value={appointments.filter((a) => a.status === "cancelled").length.toString()}
               icon={XCircle}
             />
@@ -373,7 +378,7 @@ export default function Appointments() {
           <SheetContent side="left" className="w-full sm:w-[420px] max-w-full">
             <SheetHeader>
               <SheetTitle className="text-xl md:text-2xl">
-                Appointments on{" "}
+                Rendez-vous du{" "}
                 {formattedSelectedDate && (
                   <span className="text-muted-foreground block text-lg sm:inline">
                     ({formattedSelectedDate})
@@ -381,7 +386,7 @@ export default function Appointments() {
                 )}
               </SheetTitle>
               <SheetDescription className="text-sm md:text-base">
-                List of appointments for this date.
+                Liste des rendez-vous pour cette date.
               </SheetDescription>
             </SheetHeader>
 
@@ -418,7 +423,7 @@ export default function Appointments() {
                             statusColors[appointment.status]
                           } text-sm`}
                         >
-                          {appointment.status}
+                          {statusLabels[appointment.status] ?? appointment.status}
                         </Badge>
                       </div>
                     </div>
@@ -445,16 +450,16 @@ export default function Appointments() {
                               setIsAppointmentDetailsDialogOpen(true);
                             }}
                           >
-                            <Eye className="h-4 w-4 mr-2" /> View Details
+                            <Eye className="h-4 w-4 mr-2" /> Voir les détails
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-xs sm:max-w-md md:max-w-2xl overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle className="text-xl md:text-2xl">
-                              Appointment Details
+                              Détails du rendez-vous
                             </DialogTitle>
                             <DialogDescription className="text-sm md:text-base">
-                              View and manage appointment request
+                              Consulter et gérer la demande de rendez-vous
                             </DialogDescription>
                           </DialogHeader>
                           {selectedAppointment && (
@@ -462,12 +467,12 @@ export default function Appointments() {
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-3">
                                   <h4 className="font-medium text-lg">
-                                    Customer Information
+                                    Informations client
                                   </h4>
                                   <div className="space-y-2 text-sm">
                                     <div>
                                       <label className="text-muted-foreground">
-                                        Name
+                                        Nom
                                       </label>
                                       <p className="font-medium">
                                         {selectedAppointment.name}
@@ -483,41 +488,41 @@ export default function Appointments() {
                                     </div>
                                     <div>
                                       <label className="text-muted-foreground">
-                                        Phone
+                                        Téléphone
                                       </label>
                                       <p className="font-medium">
                                         {selectedAppointment.phone ||
-                                          "Not provided"}
+                                          "Non renseigné"}
                                       </p>
                                     </div>
                                     <div>
                                       <label className="text-muted-foreground">
-                                        Appointment Date
+                                        Date du rendez-vous
                                       </label>
                                       <p className="font-medium">
                                         {selectedAppointment.appointment_date ||
-                                          "Not provided"}
+                                          "Non renseigné"}
                                       </p>
                                     </div>
                                     <div>
                                       <label className="text-muted-foreground">
-                                        Appointment Time
+                                        Heure du rendez-vous
                                       </label>
                                       <p className="font-medium">
                                         {selectedAppointment.appointment_time ||
-                                          "Not provided"}
+                                          "Non renseigné"}
                                       </p>
                                     </div>
                                   </div>
                                 </div>
                                 <div className="space-y-3">
                                   <h4 className="font-medium text-lg">
-                                    Vehicle Information
+                                    Informations véhicule
                                   </h4>
                                   <div className="space-y-2 text-sm">
                                     <div>
                                       <label className="text-muted-foreground">
-                                        Vehicle
+                                        Véhicule
                                       </label>
                                       <p className="font-medium">
                                         {selectedAppointment.car_brand}{" "}
@@ -527,11 +532,11 @@ export default function Appointments() {
                                     </div>
                                     <div>
                                       <label className="text-muted-foreground">
-                                        Chassis
+                                        Châssis
                                       </label>
                                       <p className="font-medium">
                                         {selectedAppointment.car_chassis ||
-                                          "Not provided"}
+                                          "Non renseigné"}
                                       </p>
                                     </div>
                                     <div>
@@ -541,7 +546,7 @@ export default function Appointments() {
                                       <p className="font-medium">
                                         {selectedAppointment.service_types?.join(
                                           ", "
-                                        ) || "None"}
+                                        ) || "Aucun"}
                                       </p>
                                     </div>
                                   </div>
@@ -569,7 +574,7 @@ export default function Appointments() {
                                       )
                                     }
                                   >
-                                    Confirm Appointment
+                                    Confirmer le rendez-vous
                                   </Button>
                                 )}
                                 {(selectedAppointment.status === "pending" ||
@@ -585,7 +590,7 @@ export default function Appointments() {
                                       )
                                     }
                                   >
-                                    Reschedule
+                                    Reprogrammer
                                   </Button>
                                 )}
                                 {selectedAppointment.status === "confirmed" && (
@@ -599,7 +604,7 @@ export default function Appointments() {
                                       )
                                     }
                                   >
-                                    Mark as Completed
+                                    Marquer comme terminé
                                   </Button>
                                 )}
                                 <Button
@@ -608,9 +613,9 @@ export default function Appointments() {
                                   className="w-full sm:w-auto"
                                 >
                                   <a
-                                    href={`mailto:${selectedAppointment.email}?subject=Appointment Confirmation&body=Dear ${selectedAppointment.name},%0A%0AYour appointment has been confirmed.%0A%0ABest regards,%0AAutoDealer Team`}
+                                    href={`mailto:${selectedAppointment.email}?subject=${encodeURIComponent("Confirmation de votre rendez-vous")}&body=${encodeURIComponent(`Bonjour ${selectedAppointment.name},\n\nVotre rendez-vous est confirmé.\n\nCordialement,\nForum Auto Gabès`)}`}
                                   >
-                                    Send Email
+                                    Envoyer un email
                                   </a>
                                 </Button>
                                 {(selectedAppointment.status === "pending" ||
@@ -623,7 +628,7 @@ export default function Appointments() {
                                     onClick={() => {
                                       if (
                                         confirm(
-                                          "Are you sure you want to cancel this appointment?"
+                                          "Voulez-vous vraiment annuler ce rendez-vous ?"
                                         )
                                       ) {
                                         updateAppointmentStatus(
@@ -633,7 +638,7 @@ export default function Appointments() {
                                       }
                                     }}
                                   >
-                                    Cancel
+                                    Annuler
                                   </Button>
                                 )}
                               </div>
@@ -646,7 +651,7 @@ export default function Appointments() {
                 ))
               ) : (
                 <Card className="p-8 text-center text-muted-foreground border border-dashed">
-                  No appointments on this day
+                  Aucun rendez-vous ce jour-là
                 </Card>
               )}
             </div>
@@ -662,10 +667,10 @@ export default function Appointments() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="text-xl md:text-2xl">
-              Reschedule Appointment
+              Reprogrammer le rendez-vous
             </DialogTitle>
             <DialogDescription className="text-sm md:text-base">
-              Choose a new date and time for this appointment.
+              Choisissez une nouvelle date et une nouvelle heure pour ce rendez-vous.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -688,7 +693,7 @@ export default function Appointments() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <label htmlFor="time" className="text-right text-sm font-medium">
-                Time
+                Heure
               </label>
               <Input
                 id="time"
@@ -711,14 +716,14 @@ export default function Appointments() {
               onClick={() => setIsRescheduleModalOpen(false)}
               disabled={rescheduleMutation.isPending}
             >
-              Cancel
+              Annuler
             </Button>
             <Button
               className="w-full sm:w-auto"
               onClick={handleSaveReschedule}
               disabled={loading}
             >
-              {rescheduleMutation.isPending ? "Saving..." : "Save Changes"}
+              {rescheduleMutation.isPending ? "Enregistrement…" : "Enregistrer"}
             </Button>
           </div>
         </DialogContent>

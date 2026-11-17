@@ -22,7 +22,7 @@ export const useUsers = () => {
     error: query.error
       ? query.error instanceof Error
         ? query.error.message
-        : "Failed to fetch users"
+        : "Impossible de charger les utilisateurs"
       : null,
     refetch: query.refetch,
   };

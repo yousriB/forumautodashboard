@@ -8,15 +8,15 @@ interface HeaderProps {
 
 function greeting(date: Date) {
   const h = date.getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
+  if (h < 12) return "Bonjour";
+  if (h < 18) return "Bon après-midi";
+  return "Bonsoir";
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { user } = useUser();
   const now = new Date();
-  const dateLabel = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  const dateLabel = now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
   const name = user?.email?.split("@")[0];
 
   return (
@@ -26,7 +26,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           <button
             onClick={onMenuClick}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary lg:hidden"
-            aria-label="Open menu"
+            aria-label="Ouvrir le menu"
           >
             <Menu className="h-5 w-5" />
           </button>

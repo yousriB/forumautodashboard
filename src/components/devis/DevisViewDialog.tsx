@@ -17,7 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { User, Car, Info, Mail, Phone, MapPin } from "lucide-react";
-import { DevisRequest, DevisType, CAR_BRANDS } from "@/types/devis";
+import { DevisRequest, DevisType, STATUS_LABELS } from "@/types/devis";
+import { useBrands } from "@/lib/brands";
+import { useUser } from "@/context/UserContext";
 import { StatusBadge } from "./StatusBadge";
 import { formatDateTime } from "@/utils/devisUtils";
 import { VALIDATION } from "@/utils/constants";
@@ -50,6 +52,21 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
     editedData,
     onInputChange,
   }) => {
+    const { user } = useUser();
+    const { activeBrands, brands, labelOf } = useBrands();
+    // Brands the request may be moved to: a sales user only their own (the
+    // database refuses anything else); the current brand stays listed even
+    // if it was retired (e.g. FORD history).
+    const editableBrands = React.useMemo(() => {
+      const base =
+        user?.role === "sales"
+          ? brands.filter((b) => user.brands.includes(b.code))
+          : activeBrands;
+      const current = request?.car_brand;
+      return current && !base.some((b) => b.code === current)
+        ? [...base, { code: current, label: labelOf(current), active: false, sort_order: 999 }]
+        : base;
+    }, [user, brands, activeBrands, request?.car_brand, labelOf]);
     if (!request) return null;
 
     const isCustom = type === "custom";
@@ -62,10 +79,9 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
           <DialogHeader>
             <div className="flex justify-between items-start">
               <div>
-                <DialogTitle>Devis Request Details</DialogTitle>
+                <DialogTitle>Détails de la demande de devis</DialogTitle>
                 <DialogDescription>
-                  {isEditing ? "Edit" : "View"} information for this {type}{" "}
-                  devis request
+                  {isEditing ? "Modifier" : "Consulter"} les informations de cette demande de devis{type === "custom" ? " personnalisé" : ""}
                 </DialogDescription>
               </div>
               {/*not hide the button of edit for all the devis request*/}
@@ -91,7 +107,7 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                     <path d="m15 5 4 4" />
                   </svg>
-                  Edit
+                  Modifier
                 </Button>
               )}
             </div>
@@ -103,12 +119,12 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
               <div className="space-y-4">
                 <h4 className="font-medium text-foreground flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Customer Information
+                  Informations client
                 </h4>
                 <div className="space-y-3">
                   <div>
                     <Label className="text-sm text-muted-foreground">
-                      Full Name
+                      Nom complet
                     </Label>
                     {isEditing ? (
                       <div className="grid grid-cols-2 gap-2">
@@ -178,7 +194,7 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
 
                   <div>
                     <Label className="text-sm text-muted-foreground">
-                      Phone
+                      Téléphone
                     </Label>
                     {isEditing ? (
                       <div className="relative">
@@ -213,13 +229,13 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                       />
                     ) : (
                       <p className="font-medium">
-                        {request.note || "No note provided"}
+                        {request.note || "Aucune note"}
                       </p>
                     )}
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">
-                      Payment Mode
+                      Mode de paiement
                     </Label>
                     {isEditing ? (
                       <Select
@@ -229,17 +245,17 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                         }
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select payment mode" />
+                          <SelectValue placeholder="Choisir le mode de paiement" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="bank">Bank</SelectItem>
+                          <SelectItem value="bank">Crédit bancaire</SelectItem>
                           <SelectItem value="leasing">Leasing</SelectItem>
                           <SelectItem value="comptant">Comptant</SelectItem>
                         </SelectContent>
                       </Select>
                     ) : (
                       <p className="font-medium">
-                        {request.payment_mode || "No payment mode provided"}
+                        {request.payment_mode || "Mode de paiement non renseigné"}
                       </p>
                     )}
                   </div>
@@ -247,11 +263,11 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                   {hasRegion && (
                     <div>
                       <Label className="text-sm text-muted-foreground">
-                        Region
+                        Région
                       </Label>
                       <p className="font-medium flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
-                        {request.region || "No region specified"}
+                        {request.region || "Région non renseignée"}
                       </p>
                     </div>
                   )}
@@ -262,7 +278,7 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                     </Label>
                  
                       <p className="font-medium flex items-center gap-2">
-                        {request.is_first_sale ? "Yes" : "No"}
+                        {request.is_first_sale ? "Oui" : "Non"}
                       </p>
                   </div>
                 </div>
@@ -272,12 +288,12 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
               <div className="space-y-4">
                 <h4 className="font-medium text-foreground flex items-center gap-2">
                   <Car className="h-4 w-4" />
-                  Vehicle Information
+                  Informations véhicule
                 </h4>
                 <div className="space-y-3">
                   <div>
                     <Label className="text-sm text-muted-foreground">
-                      Brand
+                      Marque
                     </Label>
                     {isEditing ? (
                       <Select
@@ -287,24 +303,25 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                         }
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select brand" />
+                          <SelectValue placeholder="Choisir la marque" />
                         </SelectTrigger>
                         <SelectContent>
-                          {CAR_BRANDS.map((brand) => (
-                            <SelectItem key={brand} value={brand}>
-                              {brand}
+                          {editableBrands.map((brand) => (
+                            <SelectItem key={brand.code} value={brand.code}>
+                              {brand.label}
+                              {!brand.active && " (historique)"}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     ) : (
-                      <p className="font-medium">{request.car_brand}</p>
+                      <p className="font-medium">{labelOf(request.car_brand)}</p>
                     )}
                   </div>
 
                   <div>
                     <Label className="text-sm text-muted-foreground">
-                      Model
+                      Modèle
                     </Label>
                     {isEditing ? (
                       <Input
@@ -337,7 +354,7 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                   {hasPrice && (
                     <div>
                       <Label className="text-sm text-muted-foreground">
-                        Price
+                        Prix
                       </Label>
                       <p className="font-medium text-lg">{request.car_price}</p>
                     </div>
@@ -345,7 +362,7 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
 
                   <div>
                     <Label className="text-sm text-muted-foreground">
-                      Status
+                      Statut
                     </Label>
                     <div className="mt-1">
                       <StatusBadge status={request.status} />
@@ -354,61 +371,27 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                 </div>
               </div>
 
-              {/* Request Information */}
+              {/* Suivi de la demande */}
               <div className="space-y-4">
                 <h4 className="font-medium text-foreground flex items-center gap-2">
                   <Info className="h-4 w-4" />
-                  Request Information
+                  Suivi de la demande
                 </h4>
                 <div className="space-y-3">
-                  <div>
-                    <Label className="text-sm text-muted-foreground">
-                      Created At
-                    </Label>
-                    <p className="font-medium">
-                      {formatDateTime(request.created_at)}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground">
-                      Processed At
-                    </Label>
-                    <p className="font-medium">
-                      {request.processed_at
-                        ? formatDateTime(request.processed_at)
-                        : "Not Processed"}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground">
-                      Completed At
-                    </Label>
-                    <p className="font-medium">
-                      {request.completed_at
-                        ? formatDateTime(request.completed_at)
-                        : "Not Completed"}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground">
-                      Sold At
-                    </Label>
-                    <p className="font-medium">
-                      {request.sold_at
-                        ? formatDateTime(request.sold_at)
-                        : "Not Sold"}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground">
-                      Rejected At
-                    </Label>
-                    <p className="font-medium">
-                      {request.rejected_at
-                        ? formatDateTime(request.rejected_at)
-                        : "Not Rejected"}
-                    </p>
-                  </div>
+                  {[
+                    { label: "Reçue le", value: request.created_at, empty: "—" },
+                    { label: `${STATUS_LABELS.processing} le`, value: request.processed_at, empty: "Non traitée" },
+                    { label: `${STATUS_LABELS.sold} le`, value: request.sold_at, empty: "Pas de vente confirmée" },
+                    { label: `${STATUS_LABELS.completed} le`, value: request.completed_at, empty: "Non livré" },
+                    { label: `${STATUS_LABELS.rejected} le`, value: request.rejected_at, empty: "Non annulé" },
+                  ].map((row) => (
+                    <div key={row.label}>
+                      <Label className="text-sm text-muted-foreground">{row.label}</Label>
+                      <p className="font-medium">
+                        {row.value ? formatDateTime(row.value) : row.empty}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -417,14 +400,14 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
               {isEditing ? (
                 <>
                   <Button onClick={onSave} disabled={loading}>
-                    {loading ? "Saving..." : "Save Changes"}
+                    {loading ? "Enregistrement…" : "Enregistrer"}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={onCancel}
                     disabled={loading}
                   >
-                    Cancel
+                    Annuler
                   </Button>
                 </>
               ) : (
@@ -434,19 +417,19 @@ export const DevisViewDialog: React.FC<DevisViewDialogProps> = React.memo(
                       href={`mailto:${request.email}?subject=Devis Request - ${request.car_brand} ${request.car_model}`}
                     >
                       <Mail className="h-4 w-4 mr-2" />
-                      Send Email
+                      Envoyer un email
                     </a>
                   </Button>
                   <Button variant="outline" asChild>
                     <a href={`tel:${request.phone_number}`}>
                       <Phone className="h-4 w-4 mr-2" />
-                      Call Customer
+                      Appeler le client
                     </a>
                   </Button>
                 </>
               )}
               <Button variant="outline" onClick={onClose}>
-                Close
+                Fermer
               </Button>
             </div>
           </div>

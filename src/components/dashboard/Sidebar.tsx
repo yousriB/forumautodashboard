@@ -9,22 +9,25 @@ import {
   FileText,
   Mail,
   LogOut,
+  FileBarChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/context/UserContext";
 import { BrandLockup } from "./BrandMark";
+import { useBrands } from "@/lib/brands";
 
 const navigation = [
-  { name: "Overview", href: "/dashboard", icon: LayoutDashboard, roles: ["admin"] },
-  { name: "Proforma requests", href: "/devis", icon: FileText, roles: ["admin", "sales"] },
+  { name: "Vue d'ensemble", href: "/dashboard", icon: LayoutDashboard, roles: ["admin"] },
+  { name: "Demandes de devis", href: "/devis", icon: FileText, roles: ["admin", "sales"] },
   { name: "Messages", href: "/messages", icon: MessageCircle, roles: ["admin", "support"] },
   { name: "Test drives", href: "/testdrive", icon: CarFront, roles: ["admin", "sales"] },
-  { name: "Users", href: "/users", icon: Users, roles: ["admin"] },
+  { name: "Utilisateurs", href: "/users", icon: Users, roles: ["admin"] },
   { name: "Newsletter", href: "/newsletters", icon: Mail, roles: ["admin"] },
-  { name: "Settings", href: "/settings", icon: Settings, roles: ["admin", "sales", "support"] },
+  { name: "Export & Rapports", href: "/exports", icon: FileBarChart, roles: ["admin"] },
+  { name: "Paramètres", href: "/settings", icon: Settings, roles: ["admin", "sales", "support"] },
 ];
 
-const ROLE_LABEL: Record<string, string> = { admin: "Administrator", sales: "Sales", support: "Support" };
+const ROLE_LABEL: Record<string, string> = { admin: "Administrateur", sales: "Commercial", support: "Support" };
 
 interface SidebarProps {
   isOpen: boolean;
@@ -34,6 +37,13 @@ interface SidebarProps {
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const location = useLocation();
   const { user, logout } = useUser();
+  const { labelOf } = useBrands();
+  const brandSummary =
+    user && user.brands.length > 0
+      ? user.brands.length <= 2
+        ? user.brands.map((b) => labelOf(b)).join(", ")
+        : `${user.brands.length} marques`
+      : "";
 
   const filteredNav = navigation.filter((item) => item.roles.includes(user?.role || ""));
   const initial = (user?.email?.[0] ?? user?.role?.[0] ?? "u").toUpperCase();
@@ -59,13 +69,13 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           <button
             onClick={() => setIsOpen(false)}
             className="rounded-full p-1.5 hover:bg-secondary lg:hidden"
-            aria-label="Close menu"
+            aria-label="Fermer le menu"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="eyebrow px-6 pb-2 pt-3">Workspace</div>
+        <div className="eyebrow px-6 pb-2 pt-3">Espace de travail</div>
         <nav className="flex-1 space-y-1 overflow-y-auto px-3">
           {filteredNav.map((item) => {
             const isActive = location.pathname === item.href;
@@ -90,10 +100,13 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               {initial}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">{user?.email || "User"}</p>
-              <p className="eyebrow mt-0.5 text-[10px]">
+              <p className="truncate text-sm font-medium text-foreground">{user?.email || "Utilisateur"}</p>
+              <p
+                className="eyebrow mt-0.5 truncate text-[10px]"
+                title={user?.brands.map((b) => labelOf(b)).join(", ")}
+              >
                 {ROLE_LABEL[user?.role ?? ""] ?? user?.role}
-                {user?.brand ? ` · ${user.brand}` : ""}
+                {brandSummary ? ` · ${brandSummary}` : ""}
               </p>
             </div>
           </div>
@@ -105,7 +118,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-[#fbe2da] hover:text-[#9a3415]"
           >
             <LogOut className="h-4 w-4" />
-            Log out
+            Se déconnecter
           </button>
         </div>
       </aside>

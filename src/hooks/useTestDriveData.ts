@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/context/UserContext";
 import { TestDriveRequest } from "@/types/testDrive";
 import { fetchTestDriveRequests } from "@/services/testDriveService";
-import { filterByBrand } from "@/utils/testDriveUtils";
 import { queryKeys } from "@/lib/queryKeys";
 
 /**
@@ -22,15 +21,10 @@ export const useTestDriveData = () => {
   const query = useQuery<TestDriveRequest[]>({
     queryKey,
     queryFn: ({ signal }) => fetchTestDriveRequests(signal),
-    // Apply the sales-by-brand filter in `select` so the underlying cache
-    // stays untouched (admins on another tab still see all rows from the
-    // same cache entry).
-    select: (data) => {
-      if (user?.role === "sales" && user?.brand) {
-        return filterByBrand(data, user.brand);
-      }
-      return data;
-    },
+    enabled: !!user,
+    // Sales users only receive their assigned brands: row-level security on
+    // test_drive_requests filters by car_brand in the database (logout reloads
+    // the page, so the cache is never shared between accounts).
   });
 
   // Imperative setter kept for backwards compatibility with useTestDriveActions.
@@ -56,7 +50,7 @@ export const useTestDriveData = () => {
     error: query.error
       ? query.error instanceof Error
         ? query.error.message
-        : "Failed to load test drive requests"
+        : "Impossible de charger les demandes de test drive"
       : null,
     refreshData: query.refetch,
     setRequests,

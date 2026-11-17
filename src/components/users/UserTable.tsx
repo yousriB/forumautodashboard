@@ -1,7 +1,28 @@
 import { User as UserInterface } from '@/types/user.types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { User as UserType, Car, Eye, Edit, Trash2 } from 'lucide-react';
+import { User as UserType, Eye, Edit, Trash2 } from 'lucide-react';
+import { ROLE_LABELS } from '@/types/user.types';
+import { useBrands } from '@/lib/brands';
+
+const BrandChips = ({ user, compact = false }: { user: UserInterface; compact?: boolean }) => {
+  const { labelOf } = useBrands();
+  if (user.role !== 'sales') {
+    return <span className="text-muted-foreground">{user.role === 'admin' ? 'Toutes les marques' : '—'}</span>;
+  }
+  if (user.brands.length === 0) {
+    return <span className="text-destructive">Aucune marque</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {user.brands.map((b) => (
+        <Badge key={b} variant="secondary" className={compact ? 'px-1.5 py-0 text-[10px] font-medium' : 'font-medium'}>
+          {labelOf(b)}
+        </Badge>
+      ))}
+    </div>
+  );
+};
 
 interface UserTableProps {
   users: UserInterface[];
@@ -29,7 +50,7 @@ export const UserTable = ({
   if (users.length === 0) {
     return (
       <div className="text-center p-8 text-muted-foreground">
-        No users found
+        Aucun utilisateur trouvé
       </div>
     );
   }
@@ -39,10 +60,10 @@ export const UserTable = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>User</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead className="hidden sm:table-cell">Brand</TableHead>
-            <TableHead className="hidden md:table-cell">Created Date</TableHead>
+            <TableHead>Utilisateur</TableHead>
+            <TableHead>Rôle</TableHead>
+            <TableHead className="hidden sm:table-cell">Marques</TableHead>
+            <TableHead className="hidden md:table-cell">Créé le</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -57,56 +78,42 @@ export const UserTable = ({
                   <div className="min-w-0">
                     <div className="font-medium text-foreground truncate">{user.email}</div>
                     <div className="sm:hidden text-xs text-muted-foreground mt-1">
-                      {user.brand ? (
-                        <div className="flex items-center gap-1">
-                          <Car className="h-3 w-3" />
-                          <span>{user.brand}</span>
-                        </div>
-                      ) : (
-                        <span>All Brands</span>
-                      )}
+                      <BrandChips user={user} compact />
                     </div>
                   </div>
                 </div>
               </TableCell>
               <TableCell>
-                <span className={user.role ? `bg-${user.role} text-blue-500 font-medium` : ''}>
-                  {user.role}
+                <span className="font-medium text-foreground">
+                  {ROLE_LABELS[user.role] ?? user.role}
                 </span>
               </TableCell>
               <TableCell className="hidden sm:table-cell">
-                {user.brand ? (
-                  <div className="flex items-center gap-1">
-                    <Car className="h-4 w-4 text-muted-foreground" />
-                    <span>{user.brand}</span>
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground">All Brands</span>
-                )}
+                <BrandChips user={user} />
               </TableCell>
               <TableCell className="text-muted-foreground hidden md:table-cell">
-                {new Date(user.created_at).toLocaleDateString()}
+                {new Date(user.created_at).toLocaleDateString('fr-FR')}
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2">
                   <button
                     onClick={() => onView(user)}
                     className="p-2 hover:bg-muted rounded-full"
-                    aria-label={`View ${user.email}`}
+                    aria-label={`Voir ${user.email}`}
                   >
                     <Eye className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => onEdit(user)}
                     className="p-2 hover:bg-muted rounded-full"
-                    aria-label={`Edit ${user.email}`}
+                    aria-label={`Modifier ${user.email}`}
                   >
                     <Edit className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => onDelete(user)}
                     className="p-2 text-destructive hover:bg-muted rounded-full"
-                    aria-label={`Delete ${user.email}`}
+                    aria-label={`Supprimer ${user.email}`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

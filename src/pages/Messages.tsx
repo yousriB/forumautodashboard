@@ -36,7 +36,11 @@ import {
   CheckCircle,
   Mail,
   CheckCheck,
+  Trash2,
 } from "lucide-react";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/context/UserContext";
 import { supabase } from "@/lib/supabaseClient";
 import { useDebounce } from "@/hooks/useDebounce";
 import { queryKeys } from "@/lib/queryKeys";
@@ -55,6 +59,12 @@ const statusColors = {
   unread: "bg-warning text-warning-foreground",
   read: "bg-primary text-primary-foreground",
   responded: "bg-success text-success-foreground",
+};
+
+const statusLabels: Record<ContactMessage["status"], string> = {
+  unread: "Non lu",
+  read: "Lu",
+  responded: "Répondu",
 };
 
 const statusIcons = {
@@ -174,6 +184,43 @@ export default function Messages() {
     },
   });
 
+  // Delete (admins only — the contact_admin_delete policy enforces it).
+  // `.select("id")` returns the deleted rows, so a refused delete (0 rows)
+  // is reported as an error instead of silently "succeeding".
+  const { toast } = useToast();
+  const { user } = useUser();
+  const isAdmin = user?.role === "admin";
+  const [pendingDelete, setPendingDelete] = useState<ContactMessage | null>(null);
+
+  const deleteMutation = useMutation<void, Error, string>({
+    mutationFn: async (messageId) => {
+      const { data, error: delErr } = await supabase
+        .from("contact_messages")
+        .delete()
+        .eq("id", messageId)
+        .select("id");
+      if (delErr) throw new Error(delErr.message);
+      if (!data || data.length === 0) {
+        throw new Error("Suppression refusée ou message introuvable.");
+      }
+    },
+    onSuccess: (_d, messageId) => {
+      queryClient.setQueryData<ContactMessage[]>(queryKeys.messages.all, (old) =>
+        (old ?? []).filter((m) => m.id !== messageId)
+      );
+      if (selectedMessage?.id === messageId) setSelectedMessage(null);
+      setPendingDelete(null);
+      toast({ title: "Message supprimé" });
+    },
+    onError: (err) => {
+      toast({
+        title: "Suppression impossible",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleRespond = (messageId: string) => {
     if (respondMutation.isPending) return;
     respondMutation.mutate(messageId);
@@ -202,15 +249,15 @@ export default function Messages() {
         {/* Page Header */}
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 gap-4">
           <div className="flex-1">
-            <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">Contact Messages</h1>
+            <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">Messages de contact</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-2">
-              Manage customer inquiries and contact requests
+              Demandes et questions envoyées depuis le site
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="flex items-center gap-1 text-xs sm:text-sm">
               <MessageSquare className="h-3 w-3" />
-              {messages.filter((m) => m.status === "unread").length} Unread
+              {messages.filter((m) => m.status === "unread").length} non lu(s)
             </Badge>
           </div>
         </div>
@@ -220,7 +267,7 @@ export default function Messages() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search messages by name, email, or content..."
+              placeholder="Rechercher par nom, email ou contenu…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 input-field"
@@ -229,13 +276,13 @@ export default function Messages() {
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-48">
               <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder="Filtrer par statut" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Messages</SelectItem>
-              <SelectItem value="unread">Unread</SelectItem>
-              <SelectItem value="read">Read</SelectItem>
-              <SelectItem value="responded">Responded</SelectItem>
+              <SelectItem value="all">Tous les messages</SelectItem>
+              <SelectItem value="unread">Non lus</SelectItem>
+              <SelectItem value="read">Lus</SelectItem>
+              <SelectItem value="responded">Répondus</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -243,7 +290,7 @@ export default function Messages() {
         {/* Loading & Error States */}
         {loading && (
           <div className="dashboard-card py-8 text-center">
-            <p className="text-muted-foreground">Loading messages...</p>
+            <p className="text-muted-foreground">Chargement des messages…</p>
           </div>
         )}
 
@@ -255,7 +302,7 @@ export default function Messages() {
 
         {!loading && !error && filteredMessages.length === 0 && (
           <div className="dashboard-card py-8 text-center">
-            <p className="text-muted-foreground">No messages found.</p>
+            <p className="text-muted-foreground">Aucun message trouvé.</p>
           </div>
         )}
 
@@ -266,10 +313,10 @@ export default function Messages() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Customer</TableHead>
-                    <TableHead className="hidden md:table-cell">Message Preview</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead className="hidden md:table-cell">Aperçu du message</TableHead>
                     <TableHead className="hidden sm:table-cell">Date</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Statut</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -316,9 +363,9 @@ export default function Messages() {
                         </TableCell>
                         <TableCell className="text-muted-foreground hidden sm:table-cell">
                           <div className="text-sm">
-                            <div>{new Date(message.created_at).toLocaleDateString()}</div>
+                            <div>{new Date(message.created_at).toLocaleDateString("fr-FR")}</div>
                             <div className="text-xs opacity-75">
-                              {new Date(message.created_at).toLocaleTimeString([], {
+                              {new Date(message.created_at).toLocaleTimeString("fr-FR", {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })}
@@ -328,7 +375,7 @@ export default function Messages() {
                         <TableCell>
                           <Badge className={statusColors[message.status]}>
                             <StatusIcon className="h-3 w-3 mr-1" />
-                            {message.status}
+                            {statusLabels[message.status] ?? message.status}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -350,9 +397,9 @@ export default function Messages() {
                               </DialogTrigger>
                               <DialogContent className="max-w-2xl">
                                 <DialogHeader>
-                                  <DialogTitle>Message from {message.name}</DialogTitle>
+                                  <DialogTitle>Message de {message.name}</DialogTitle>
                                   <DialogDescription>
-                                    Received on {new Date(message.created_at).toLocaleString()}
+                                    Reçu le {new Date(message.created_at).toLocaleString("fr-FR")}
                                   </DialogDescription>
                                 </DialogHeader>
                                 <div className="space-y-4">
@@ -379,8 +426,8 @@ export default function Messages() {
                                         >
                                           <CheckCheck className="h-4 w-4 mr-1" />
                                           {respondMutation.isPending
-                                            ? "Marking..."
-                                            : "Respond"}
+                                            ? "Enregistrement…"
+                                            : "Marquer comme répondu"}
                                         </Button>
                                         <Button>
                                           <a
@@ -388,7 +435,7 @@ export default function Messages() {
                                             className="flex items-center gap-1"
                                           >
                                             <Mail className="h-4 w-4 mr-1" />
-                                            Open in Email Client
+                                            Répondre par email
                                           </a>
                                         </Button>
                                       </div>
@@ -397,6 +444,18 @@ export default function Messages() {
                                 </div>
                               </DialogContent>
                             </Dialog>
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                aria-label={`Supprimer le message de ${message.name}`}
+                                onClick={() => setPendingDelete(message)}
+                                disabled={deleteMutation.isPending}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -409,20 +468,36 @@ export default function Messages() {
             {/* Pagination */}
             <div className="flex items-center justify-between px-6 py-4 border-t border-border">
               <div className="text-sm text-muted-foreground">
-                Showing {filteredMessages.length} of {messages.length} messages
+                {filteredMessages.length} message(s) affiché(s) sur {messages.length}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" disabled>
-                  Previous
+                  Précédent
                 </Button>
                 <Button variant="outline" size="sm">
-                  Next
+                  Suivant
                 </Button>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      <ConfirmDeleteDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title="Supprimer ce message ?"
+        description={
+          pendingDelete && (
+            <p>
+              Le message de <span className="font-medium text-foreground">{pendingDelete.name}</span>{" "}
+              ({pendingDelete.email}) sera supprimé définitivement.
+            </p>
+          )
+        }
+        isDeleting={deleteMutation.isPending}
+        onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete.id)}
+      />
     </DashboardLayout>
   );
 }

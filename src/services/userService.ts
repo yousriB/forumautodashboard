@@ -29,15 +29,18 @@ export const userService = {
   async getUsers(): Promise<User[]> {
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, role, brand, created_at')
+      .select('id, email, role, brand, created_at, user_brands(brand)')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching users:', error.message);
-      throw new Error('Failed to fetch users');
+      throw new Error('Impossible de charger les utilisateurs');
     }
 
-    return data || [];
+    return (data || []).map(({ user_brands, ...u }) => ({
+      ...u,
+      brands: ((user_brands ?? []) as { brand: string }[]).map((b) => b.brand).sort(),
+    })) as User[];
   },
 
   // ── Create ──────────────────────────────────────────────────────────────────
@@ -48,33 +51,45 @@ export const userService = {
       email:    userData.email,
       password: userData.password,
       role:     userData.role,
-      brand:    userData.brand || null,
+      brands:   userData.role === 'sales' ? userData.brands ?? [] : [],
     });
     return user;
   },
 
   // ── Update ──────────────────────────────────────────────────────────────────
-  // Updates role and brand in the profile table (admins only, enforced by RLS).
+  // 1. role in the profile table (admins only, enforced by RLS)
+  // 2. brand list through set_user_brands (admin-only RPC, validates brands
+  //    and clears them for non-sales roles)
+  // 3. optional new password through the admin-users edge function
 
-  async updateUser(id: string, userData: Partial<UserFormData>): Promise<User> {
-    const updateData: Partial<Pick<User, 'role' | 'brand'>> = {};
-
-    if (userData.role  !== undefined) updateData.role  = userData.role;
-    if (userData.brand !== undefined) updateData.brand = userData.brand || null;
-
-    const { data, error } = await supabase
-      .from('users')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating user:', error.message);
-      throw new Error('Failed to update user');
+  async updateUser(id: string, userData: Partial<UserFormData>): Promise<void> {
+    if (userData.role !== undefined) {
+      const { error } = await supabase
+        .from('users')
+        .update({ role: userData.role })
+        .eq('id', id)
+        .select('id')
+        .single();
+      if (error) {
+        console.error('Error updating user:', error.message);
+        throw new Error('Impossible de modifier le rôle');
+      }
     }
 
-    return data;
+    if (userData.brands !== undefined || userData.role !== undefined) {
+      const { error } = await supabase.rpc('set_user_brands', {
+        p_user_id: id,
+        p_brands: userData.role === 'sales' || userData.role === undefined ? userData.brands ?? [] : [],
+      });
+      if (error) {
+        console.error('Error updating user brands:', error.message);
+        throw new Error('Impossible de modifier les marques attribuées');
+      }
+    }
+
+    if (userData.password) {
+      await callAdminUsers<{ ok: true }>({ action: 'set_password', id, password: userData.password });
+    }
   },
 
   // ── Delete ──────────────────────────────────────────────────────────────────

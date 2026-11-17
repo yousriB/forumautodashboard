@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/queryKeys";
 
 type UseUserMutationsReturn = {
   createUser: (userData: Omit<UserFormData, "id">) => Promise<User>;
-  updateUser: (id: string, userData: Partial<UserFormData>) => Promise<User>;
+  updateUser: (id: string, userData: Partial<UserFormData>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   loading: boolean;
   error: string | null;
@@ -31,7 +31,7 @@ export const useUserMutations = (): UseUserMutationsReturn => {
   });
 
   const updateMutation = useMutation<
-    User,
+    void,
     Error,
     { id: string; userData: Partial<UserFormData> }
   >({

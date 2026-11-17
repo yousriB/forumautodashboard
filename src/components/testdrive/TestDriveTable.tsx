@@ -31,13 +31,13 @@ export const TestDriveTable = React.memo<TestDriveTableProps>(
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Customer</TableHead>
+                <TableHead>Client</TableHead>
                 <TableHead className="hidden sm:table-cell">Contact</TableHead>
-                <TableHead>Car Model</TableHead>
+                <TableHead>Modèle</TableHead>
                 <TableHead className="hidden md:table-cell">
-                  Request Date
+                  Date de la demande
                 </TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -58,14 +58,14 @@ export const TestDriveTable = React.memo<TestDriveTableProps>(
         {/* Pagination */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-border">
           <div className="text-sm text-muted-foreground">
-            Showing {requests.length} of {totalCount} requests
+            {requests.length} demande(s) affichée(s) sur {totalCount}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled>
-              Previous
+              Précédent
             </Button>
             <Button variant="outline" size="sm">
-              Next
+              Suivant
             </Button>
           </div>
         </div>

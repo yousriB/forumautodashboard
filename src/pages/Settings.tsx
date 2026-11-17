@@ -1,3 +1,4 @@
+import { useBrands } from "@/lib/brands";
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +9,7 @@ import { useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { useUser } from '@/context/UserContext';
+import { ROLE_LABELS } from '@/types/user.types';
 
 const Settings = () => {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -21,6 +23,7 @@ const Settings = () => {
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
   const { toast } = useToast();
   const { user } = useUser();
+  const { labelOf } = useBrands();
 
   // Profile data now comes from UserContext — no duplicate SELECT on `users`.
   // (The previous version refetched on every `user` reference change, which
@@ -33,12 +36,12 @@ const Settings = () => {
     setPasswordSuccess('');
 
     if (newPassword !== confirmPassword) {
-      setPasswordError('New passwords do not match');
+      setPasswordError('Les nouveaux mots de passe ne correspondent pas');
       return;
     }
 
     if (newPassword.length < 8) {
-      setPasswordError('Password must be at least 8 characters long');
+      setPasswordError('Le mot de passe doit contenir au moins 8 caractères');
       return;
     }
 
@@ -60,21 +63,21 @@ const Settings = () => {
 
       if (error) throw error;
 
-      setPasswordSuccess('Password updated successfully');
+      setPasswordSuccess('Mot de passe mis à jour');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
 
       toast({
-        title: 'Success',
-        description: 'Your password has been updated successfully',
+        title: 'Succès',
+        description: 'Votre mot de passe a été mis à jour.',
       });
     } catch (error) {
       console.error('Error updating password:', error);
-      setPasswordError(error instanceof Error ? error.message : 'Failed to update password');
+      setPasswordError(error instanceof Error ? error.message : 'Impossible de mettre à jour le mot de passe');
       toast({
-        title: 'Error',
-        description: 'Failed to update password',
+        title: 'Erreur',
+        description: 'Impossible de mettre à jour le mot de passe',
         variant: 'destructive',
       });
     } finally {
@@ -87,9 +90,9 @@ const Settings = () => {
       <div className="space-y-6">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">Settings</h1>
+          <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">Paramètres</h1>
           <p className="text-muted-foreground mt-2">
-            Manage your account settings and security preferences
+            Gérer votre compte et la sécurité
           </p>
         </div>
 
@@ -99,10 +102,10 @@ const Settings = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Profile Information
+                Informations du profil
               </CardTitle>
               <CardDescription>
-                Your personal and account details
+                Les informations de votre compte
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -113,7 +116,7 @@ const Settings = () => {
                 <div>
                   <p className="font-medium">{user?.email}</p>
                   <p className="text-sm text-muted-foreground capitalize">
-                    {user?.role.replace('_', ' ').toLowerCase()}
+                    {user ? ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] ?? user.role : ''}
                   </p>
                 </div>
               </div>
@@ -121,23 +124,25 @@ const Settings = () => {
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Email:</span>
+                  <span className="font-medium">Email :</span>
                   <span className="text-muted-foreground">{user?.email}</span>
                 </div>
                 
                 <div className="flex items-center gap-2 text-sm">
                   <Shield className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Role:</span>
+                  <span className="font-medium">Rôle :</span>
                   <span className="capitalize text-muted-foreground">
-                    {user?.role.replace('_', ' ').toLowerCase()}
+                    {user ? ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] ?? user.role : ''}
                   </span>
                 </div>
                 
-                {user?.brand && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Shield className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">Brand:</span>
-                    <span className="text-muted-foreground">{user.brand}</span>
+                {user && user.brands.length > 0 && (
+                  <div className="flex items-start gap-2 text-sm">
+                    <Shield className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{user.brands.length > 1 ? "Marques :" : "Marque :"}</span>
+                    <span className="text-muted-foreground">
+                      {user.brands.map((b) => labelOf(b)).join(", ")}
+                    </span>
                   </div>
                 )}
                 
@@ -156,35 +161,35 @@ const Settings = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Lock className="h-5 w-5" />
-                Change Password
+                Changer le mot de passe
               </CardTitle>
               <CardDescription>
-                Update your account password
+                Mettre à jour le mot de passe de votre compte
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handlePasswordChange} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="current-password">Current Password</Label>
+                  <Label htmlFor="current-password">Mot de passe actuel</Label>
                   <Input
                     id="current-password"
                     type="password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Enter current password"
+                    placeholder="Saisissez le mot de passe actuel"
                     required
                     className="w-full"
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="new-password">New Password</Label>
+                  <Label htmlFor="new-password">Nouveau mot de passe</Label>
                   <Input
                     id="new-password"
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Enter new password"
+                    placeholder="Saisissez le nouveau mot de passe"
                     required
                     minLength={8}
                     className="w-full"
@@ -192,13 +197,13 @@ const Settings = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirm New Password</Label>
+                  <Label htmlFor="confirm-password">Confirmer le nouveau mot de passe</Label>
                   <Input
                     id="confirm-password"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm new password"
+                    placeholder="Confirmez le nouveau mot de passe"
                     required
                     minLength={8}
                     className="w-full"
@@ -225,7 +230,7 @@ const Settings = () => {
                     className="w-full sm:w-auto"
                     disabled={isSubmittingPassword}
                   >
-                    {isSubmittingPassword ? 'Updating…' : 'Update Password'}
+                    {isSubmittingPassword ? 'Mise à jour…' : 'Mettre à jour le mot de passe'}
                   </Button>
                 </div>
               </form>

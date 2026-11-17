@@ -11,6 +11,7 @@ import {
 } from "@/constants/testDrive";
 import { formatDate, formatTime } from "@/utils/testDriveUtils";
 import { useUser } from "@/context/UserContext";
+import { TEST_DRIVE_STATUS_LABELS } from "@/lib/reports/types";
 
 interface TestDriveRowProps {
   request: TestDriveRequest;
@@ -94,7 +95,7 @@ export const TestDriveRow = React.memo<TestDriveRowProps>(
         <TableCell>
           <Badge className={STATUS_COLORS[request.status]}>
             <StatusIcon className="h-3 w-3 mr-1" />
-            {request.status}
+            {TEST_DRIVE_STATUS_LABELS[request.status] ?? request.status}
           </Badge>
         </TableCell>
 
@@ -105,7 +106,7 @@ export const TestDriveRow = React.memo<TestDriveRowProps>(
               size="sm"
               onClick={handleViewDetails}
               disabled={isUpdating}
-              title="View Details"
+              title="Voir les détails"
             >
               <Eye className="h-4 w-4" />
             </Button>
@@ -116,7 +117,7 @@ export const TestDriveRow = React.memo<TestDriveRowProps>(
                 onClick={handleDelete}
                 disabled={isUpdating}
                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                title="Delete Request (Admin Only)"
+                title="Supprimer la demande (administrateur)"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

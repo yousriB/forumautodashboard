@@ -1,4 +1,6 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
+import { useUser } from "@/context/UserContext";
+import { useBrands, filterBrandOptions } from "@/lib/brands";
 
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 
@@ -103,6 +105,18 @@ export default function Devis() {
   // Filters
 
   const filters = useDevisFilters(requests);
+
+  const { user } = useUser();
+  const { brands } = useBrands();
+  const brandOptions = useMemo(
+    () =>
+      filterBrandOptions(brands, {
+        role: user?.role,
+        userBrands: user?.brands,
+        dataBrands: requests.map((r) => r.car_brand),
+      }),
+    [brands, user?.role, user?.brands, requests]
+  );
 
 
 
@@ -280,13 +294,13 @@ export default function Devis() {
 
               <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">
 
-                Proforma requests
+                Demandes de devis
 
               </h1>
 
               <p className="text-muted-foreground mt-1">
 
-                Manage and track customer quote requests
+                Suivre et traiter les demandes de devis des clients
 
               </p>
 
@@ -331,6 +345,8 @@ export default function Devis() {
               brandFilter={filters.brandFilter}
 
               onBrandChange={filters.setBrandFilter}
+              brandOptions={brandOptions}
+              allBrandsLabel={user?.role === "sales" ? "Toutes mes marques" : "Toutes les marques"}
 
               dateRange={filters.dateRange}
 
@@ -370,9 +386,9 @@ export default function Devis() {
 
                     filters.hasActiveFilters
 
-                      ? "No results found"
+                      ? "Aucun résultat"
 
-                      : "No devis requests"
+                      : "Aucune demande de devis"
 
                   }
 
@@ -380,9 +396,9 @@ export default function Devis() {
 
                     filters.hasActiveFilters
 
-                      ? "Try adjusting your filters to see more results."
+                      ? "Modifiez les filtres pour afficher plus de résultats."
 
-                      : "Devis requests will appear here when customers submit them."
+                      : "Les demandes de devis apparaîtront ici dès que des clients en enverront."
 
                   }
 
@@ -392,7 +408,7 @@ export default function Devis() {
 
                       ? {
 
-                        label: "Clear Filters",
+                        label: "Effacer les filtres",
 
                         onClick: filters.clearFilters,
 
@@ -502,13 +518,11 @@ export default function Devis() {
 
               <AlertDialogHeader>
 
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogTitle>Supprimer cette demande ?</AlertDialogTitle>
 
                 <AlertDialogDescription>
 
-                  This action cannot be undone. This will permanently delete the
-
-                  request and all its data.
+                  Cette action est irréversible : la demande et toutes ses données seront supprimées définitivement.
 
                 </AlertDialogDescription>
 
@@ -522,7 +536,7 @@ export default function Devis() {
 
                 >
 
-                  Cancel
+                  Annuler
 
                 </AlertDialogCancel>
 
@@ -538,9 +552,9 @@ export default function Devis() {
 
                   {actions.loading
 
-                    ? "Deleting..."
+                    ? "Suppression…"
 
-                    : "Delete Permanently"}
+                    : "Supprimer définitivement"}
 
                 </AlertDialogAction>
 

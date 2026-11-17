@@ -22,12 +22,12 @@ import { queryKeys } from "@/lib/queryKeys";
 export const useDevisRequests = (type: DevisType | "all") => {
   const { user } = useUser();
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.devis.list(type, user?.role, user?.brand);
+  const queryKey = queryKeys.devis.list(type, user?.role, user?.brands);
 
   const query = useQuery<DevisResponse>({
     queryKey,
     queryFn: ({ signal }) =>
-      DevisService.fetchRequests(type, undefined, user?.role, user?.brand, signal),
+      DevisService.fetchRequests(type, undefined, user?.role, user?.brands, signal),
     enabled: !!user,
   });
 
@@ -84,7 +84,7 @@ export const useDevisRequests = (type: DevisType | "all") => {
     error: query.error
       ? query.error instanceof Error
         ? query.error.message
-        : "Failed to load requests"
+        : "Impossible de charger les demandes"
       : query.data?.error ?? null,
     fetchRequests: query.refetch,
     refetch: query.refetch,

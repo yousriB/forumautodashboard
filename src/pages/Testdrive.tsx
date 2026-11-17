@@ -11,6 +11,8 @@ import { TestDriveFilters } from "@/components/testdrive/TestDriveFilters";
 import { TestDriveTable } from "@/components/testdrive/TestDriveTable";
 import { TestDriveDialog } from "@/components/testdrive/TestDriveDialog";
 import { TestDriveSkeleton } from "@/components/testdrive/TestDriveSkeleton";
+import { useUser } from "@/context/UserContext";
+import { useBrands, filterBrandOptions } from "@/lib/brands";
 
 export default function Testdrive() {
   const { toast } = useToast();
@@ -21,18 +23,33 @@ export default function Testdrive() {
   // Custom hooks for data management
   const { requests, isLoading, error, refreshData, setRequests } =
     useTestDriveData();
-  const stats = useTestDriveStats(requests);
-
   // Filters and search
   const {
     searchTerm,
     statusFilter,
+    brandFilter,
     filteredRequests,
+    brandFilteredRequests,
     updateSearchTerm,
     updateStatusFilter,
+    updateBrandFilter,
     clearFilters,
     hasActiveFilters,
   } = useTestDriveFilters(requests);
+  // Counters follow the brand filter (all assigned brands by default).
+  const stats = useTestDriveStats(brandFilteredRequests);
+
+  const { user } = useUser();
+  const { brands } = useBrands();
+  const brandOptions = useMemo(
+    () =>
+      filterBrandOptions(brands, {
+        role: user?.role,
+        userBrands: user?.brands,
+        dataBrands: requests.map((r) => r.car_brand),
+      }),
+    [brands, user?.role, user?.brands, requests]
+  );
 
   // Actions
   const {
@@ -77,7 +94,7 @@ export default function Testdrive() {
   const handleCancel = useCallback(
     async (requestId: string) => {
       const confirmed = window.confirm(
-        "Are you sure you want to cancel this test drive request?"
+        "Voulez-vous vraiment annuler cette demande de test drive ?"
       );
       if (confirmed) {
         const success = await cancelRequest(requestId);
@@ -92,7 +109,7 @@ export default function Testdrive() {
   const handleDelete = useCallback(
     async (request: TestDriveRequest) => {
       const confirmed = window.confirm(
-        `Are you sure you want to delete the test drive request for ${request.full_name}? This action cannot be undone.`
+        `Supprimer la demande de test drive de ${request.full_name} ? Cette action est irréversible.`
       );
       if (confirmed) {
         await deleteRequest(request.id);
@@ -115,12 +132,12 @@ export default function Testdrive() {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <div className="text-destructive mb-4">Error: {error}</div>
+          <div className="text-destructive mb-4">Erreur : {error}</div>
           <button
             onClick={() => refreshData()}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
           >
-            Retry
+            Réessayer
           </button>
         </div>
       </DashboardLayout>
@@ -134,10 +151,10 @@ export default function Testdrive() {
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 gap-4">
           <div className="flex-1">
             <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">
-              Test Drive Requests
+              Demandes de test drive
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-2">
-              Manage customer test drive requests and schedule appointments
+              Gérer les demandes d'essai et planifier les rendez-vous
             </p>
           </div>
         </div>
@@ -151,6 +168,10 @@ export default function Testdrive() {
           statusFilter={statusFilter}
           onSearchChange={updateSearchTerm}
           onStatusFilterChange={updateStatusFilter}
+          brandFilter={brandFilter}
+          onBrandFilterChange={updateBrandFilter}
+          brandOptions={brandOptions}
+          allBrandsLabel={user?.role === "sales" ? "Toutes mes marques" : "Toutes les marques"}
         />
 
         {/* Test Drive Requests Table */}

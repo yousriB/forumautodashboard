@@ -18,7 +18,7 @@ export function BrandLockup({ className }: { className?: string }) {
   return (
     <div className={cn("flex flex-col items-start gap-1.5", className)}>
       <BrandLogo className="h-11" />
-      <span className="eyebrow text-[10px]">Sales desk</span>
+      <span className="eyebrow text-[10px]">Espace ventes</span>
     </div>
   );
 }

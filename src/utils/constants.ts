@@ -28,19 +28,19 @@ export const DATE_PRESETS = {
 
 // Error messages
 export const ERROR_MESSAGES = {
-  FETCH_FAILED: 'Failed to load devis requests',
-  UPDATE_FAILED: 'Failed to update devis status',
-  DELETE_FAILED: 'Failed to delete the request. Please try again.',
-  SAVE_FAILED: 'Failed to save changes. Please try again.',
-  NETWORK_ERROR: 'Network error. Please check your connection.',
-  UNKNOWN_ERROR: 'An unexpected error occurred',
+  FETCH_FAILED: 'Impossible de charger les demandes de devis',
+  UPDATE_FAILED: 'Impossible de modifier le statut du devis',
+  DELETE_FAILED: 'Impossible de supprimer la demande. Veuillez réessayer.',
+  SAVE_FAILED: "Impossible d'enregistrer les modifications. Veuillez réessayer.",
+  NETWORK_ERROR: 'Erreur réseau. Vérifiez votre connexion.',
+  UNKNOWN_ERROR: "Une erreur inattendue s'est produite",
 } as const;
 
 // Success messages
 export const SUCCESS_MESSAGES = {
-  STATUS_UPDATED: 'Status updated successfully',
-  REQUEST_DELETED: 'Request deleted successfully',
-  CHANGES_SAVED: 'Changes saved successfully',
+  STATUS_UPDATED: 'Statut mis à jour',
+  REQUEST_DELETED: 'Demande supprimée',
+  CHANGES_SAVED: 'Modifications enregistrées',
 } as const;
 
 // Validation rules

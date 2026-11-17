@@ -17,8 +17,30 @@ interface User {
   id: string;
   email: string;
   role: "admin" | "support" | "sales" | string;
+  /** Legacy single brand (mirror of the first assigned brand). */
   brand?: string | null;
+  /** Brands this account may access (sales). Empty for admin/support. */
+  brands: string[];
 }
+
+type ProfileRow = {
+  id: string;
+  email: string;
+  role: string;
+  brand: string | null;
+  user_brands?: { brand: string }[] | null;
+};
+
+const toUser = (row: ProfileRow | null): User | null =>
+  row
+    ? {
+        id: row.id,
+        email: row.email,
+        role: row.role,
+        brand: row.brand,
+        brands: (row.user_brands ?? []).map((b) => b.brand).sort(),
+      }
+    : null;
 
 interface UserContextType {
   user: User | null;
@@ -37,6 +59,8 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 const PROFILE_CACHE_TTL_MS = 60_000;
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
+
+export type { User as SessionUser };
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUserState] = useState<User | null>(null);
@@ -66,13 +90,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         // Primary lookup by auth ID
         const { data, error } = await supabase
           .from("users")
-          .select("id, email, role, brand")
+          .select("id, email, role, brand, user_brands(brand)")
           .eq("id", authId)
           .maybeSingle();
 
         if (error) console.error("[UserContext] fetchProfile error:", error.message);
 
-        let profile = (data as User | null) ?? null;
+        let profile = toUser(data as ProfileRow | null);
 
         // Fallback: match by email (handles legacy rows where id ≠ auth id).
         // Only run the fallback if the primary lookup returned NO row AND no
@@ -81,10 +105,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         if (!profile && !error) {
           const { data: byEmail } = await supabase
             .from("users")
-            .select("id, email, role, brand")
+            .select("id, email, role, brand, user_brands(brand)")
             .eq("email", email)
             .maybeSingle();
-          profile = (byEmail as User | null) ?? null;
+          profile = toUser(byEmail as ProfileRow | null);
         }
 
         if (profile) {

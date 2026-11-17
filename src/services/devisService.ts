@@ -7,6 +7,7 @@ import {
     FilterOptions
 } from "@/types/devis";
 import { getLatestStatusDateObject } from "@/utils/devisUtils";
+import { fetchAllRows } from "@/lib/fetchAll";
 
 export class DevisService {
     /**
@@ -21,56 +22,60 @@ export class DevisService {
         type: DevisType | 'all',
         filters?: FilterOptions,
         userRole?: string,
-        userBrand?: string,
+        userBrands?: string[],
         signal?: AbortSignal
     ): Promise<DevisResponse> {
         try {
             if (type === 'all') {
-                return this.fetchAllRequests(filters, userRole, userBrand, signal);
+                return this.fetchAllRequests(filters, userRole, userBrands, signal);
             }
 
             const tableName = type === "standard" ? "devis_requests" : "custom_devis_requests";
 
-            let query = supabase
-                .from(tableName)
-                .select("*")
-                .order("created_at", { ascending: false });
-
-            // Apply user role filtering
-            if (userRole === "sales" && userBrand) {
-                query = query.eq("car_brand", userBrand);
+            // Sales users see only their assigned brands. Row-level security
+            // enforces the same rule in the database; this filter just avoids
+            // asking for rows that would be refused anyway.
+            if (userRole === "sales" && (!userBrands || userBrands.length === 0)) {
+                return { data: [], count: 0 };
             }
 
-            // Apply filters
-            if (filters) {
-                if (filters.statusFilter && filters.statusFilter !== "all") {
-                    query = query.eq("status", filters.statusFilter);
+            const buildQuery = () => {
+                let query = supabase
+                    .from(tableName)
+                    .select("*")
+                    .order("created_at", { ascending: false })
+                    .order("id", { ascending: true });
+
+                if (userRole === "sales" && userBrands) {
+                    query = query.in("car_brand", userBrands);
                 }
 
-                if (filters.brandFilter && filters.brandFilter !== "all") {
-                    query = query.eq("car_brand", filters.brandFilter);
+                if (filters) {
+                    if (filters.statusFilter && filters.statusFilter !== "all") {
+                        query = query.eq("status", filters.statusFilter);
+                    }
+                    if (filters.brandFilter && filters.brandFilter !== "all") {
+                        query = query.eq("car_brand", filters.brandFilter);
+                    }
+                    if (filters.dateRange?.from) {
+                        query = query.gte("created_at", filters.dateRange.from.toISOString());
+                    }
+                    if (filters.dateRange?.to) {
+                        const endDate = new Date(filters.dateRange.to);
+                        endDate.setHours(23, 59, 59, 999);
+                        query = query.lte("created_at", endDate.toISOString());
+                    }
                 }
 
-                if (filters.dateRange?.from) {
-                    query = query.gte("created_at", filters.dateRange.from.toISOString());
+                if (signal) {
+                    query = query.abortSignal(signal);
                 }
+                return query;
+            };
 
-                if (filters.dateRange?.to) {
-                    const endDate = new Date(filters.dateRange.to);
-                    endDate.setHours(23, 59, 59, 999);
-                    query = query.lte("created_at", endDate.toISOString());
-                }
-            }
-
-            if (signal) {
-                query = query.abortSignal(signal);
-            }
-
-            const { data, error, count } = await query;
-
-            if (error) {
-                throw error;
-            }
+            // Paged: custom_devis_requests is past the 1000-row response cap.
+            const data = await fetchAllRows<any>(buildQuery);
+            const count = data.length;
 
             // Normalize data
             const typedData: DevisRequest[] = (data || []).map(item => ({
@@ -92,7 +97,8 @@ export class DevisService {
             return {
                 data: [],
                 count: 0,
-                error: error instanceof Error ? error.message : "Unknown error",
+                // PostgREST errors are plain objects, not Error instances.
+                error: (error as { message?: string })?.message ?? "Erreur inconnue",
             };
         }
     }
@@ -105,13 +111,13 @@ export class DevisService {
     static async fetchAllRequests(
         filters?: FilterOptions,
         userRole?: string,
-        userBrand?: string,
+        userBrands?: string[],
         signal?: AbortSignal
     ): Promise<DevisResponse> {
         try {
             const [standardResponse, customResponse] = await Promise.all([
-                this.fetchRequests('standard', filters, userRole, userBrand, signal),
-                this.fetchRequests('custom', filters, userRole, userBrand, signal)
+                this.fetchRequests('standard', filters, userRole, userBrands, signal),
+                this.fetchRequests('custom', filters, userRole, userBrands, signal)
             ]);
 
             if (standardResponse.error) throw new Error(standardResponse.error);
@@ -132,7 +138,7 @@ export class DevisService {
             return {
                 data: [],
                 count: 0,
-                error: error instanceof Error ? error.message : "Unknown error",
+                error: error instanceof Error ? error.message : "Erreur inconnue",
             };
         }
     }
@@ -162,7 +168,7 @@ export class DevisService {
             if (error) {
                 // 23514 = check_violation (used for invalid transitions)
                 if (error.code === "23514") {
-                    return { success: false, error: "Invalid status transition." };
+                    return { success: false, error: "Changement de statut non autorisé." };
                 }
                 throw error;
             }
@@ -175,7 +181,7 @@ export class DevisService {
             console.error("Error updating devis status:", error);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : "Unknown error",
+                error: error instanceof Error ? error.message : "Erreur inconnue",
             };
         }
     }
@@ -204,7 +210,7 @@ export class DevisService {
             console.error("Error deleting devis request:", error);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : "Unknown error",
+                error: error instanceof Error ? error.message : "Erreur inconnue",
             };
         }
     }
@@ -248,7 +254,7 @@ export class DevisService {
             console.error("Error updating devis request:", error);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : "Unknown error",
+                error: error instanceof Error ? error.message : "Erreur inconnue",
             };
         }
     }

@@ -17,7 +17,9 @@ import {
 } from "@/components/ui/popover";
 import { Search, Filter, Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { CAR_BRANDS } from "@/types/devis";
+import { fr } from "date-fns/locale";
+import { STATUS_LABELS, STATUS_ORDER } from "@/types/devis";
+import type { BrandInfo } from "@/lib/brands";
 import { DATE_PRESETS, UI } from "@/utils/constants";
 
 interface DevisFiltersProps {
@@ -27,6 +29,10 @@ interface DevisFiltersProps {
   onStatusChange: (value: string) => void;
   brandFilter: string;
   onBrandChange: (value: string) => void;
+  /** Brands offered in the brand filter (a sales user only gets their own). */
+  brandOptions: BrandInfo[];
+  /** Label of the "all" option, e.g. "Toutes mes marques" for sales. */
+  allBrandsLabel?: string;
   dateRange: {
     from: Date | undefined;
     to: Date | undefined;
@@ -48,6 +54,8 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
     onStatusChange,
     brandFilter,
     onBrandChange,
+    brandOptions,
+    allBrandsLabel = "Toutes les marques",
     dateRange,
     onDateRangeChange,
     hasActiveFilters,
@@ -91,7 +99,7 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
         <div className="relative w-full lg:w-96">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by name, email, or car details..."
+            placeholder="Rechercher par nom, email ou véhicule…"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-9 input-field h-10 rounded-full"
@@ -102,14 +110,15 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
         {/* Filters - Right Side */}
         <div className="flex flex-wrap gap-1 bg-card p-1.5 rounded-full shadow-card w-full lg:w-auto">
           <Select value={brandFilter} onValueChange={onBrandChange}>
-            <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0 font-medium">
-              <SelectValue placeholder="Brand" />
+            <SelectTrigger className="w-[170px] border-none shadow-none focus:ring-0 font-medium" aria-label="Filtrer par marque">
+              <SelectValue placeholder="Marque" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Brands</SelectItem>
-              {CAR_BRANDS.map((brand) => (
-                <SelectItem key={brand} value={brand}>
-                  {brand}
+              <SelectItem value="all">{allBrandsLabel}</SelectItem>
+              {brandOptions.map((brand) => (
+                <SelectItem key={brand.code} value={brand.code}>
+                  {brand.label}
+                  {!brand.active && " (historique)"}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -127,14 +136,14 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
                 {dateRange?.from ? (
                   dateRange.to ? (
                     <>
-                      {format(dateRange.from, "MMM d")} -{" "}
-                      {format(dateRange.to, "MMM d, y")}
+                      {format(dateRange.from, "d MMM", { locale: fr })} -{" "}
+                      {format(dateRange.to, "d MMM y", { locale: fr })}
                     </>
                   ) : (
-                    format(dateRange.from, "MMM d, y")
+                    format(dateRange.from, "d MMM y", { locale: fr })
                   )
                 ) : (
-                  <span>Date range</span>
+                  <span>Période</span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -162,7 +171,7 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
                   className="text-xs"
                   onClick={() => handleDatePreset(DATE_PRESETS.TODAY)}
                 >
-                  Today
+                  Aujourd'hui
                 </Button>
                 <Button
                   variant="ghost"
@@ -170,7 +179,7 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
                   className="text-xs"
                   onClick={() => handleDatePreset(DATE_PRESETS.YESTERDAY)}
                 >
-                  Yesterday
+                  Hier
                 </Button>
                 <Button
                   variant="ghost"
@@ -178,7 +187,7 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
                   className="text-xs"
                   onClick={() => handleDatePreset(DATE_PRESETS.LAST_7_DAYS)}
                 >
-                  Last 7 days
+                  7 derniers jours
                 </Button>
                 <Button
                   variant="ghost"
@@ -186,7 +195,7 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
                   className="text-xs"
                   onClick={() => handleDatePreset(DATE_PRESETS.LAST_30_DAYS)}
                 >
-                  Last 30 days
+                  30 derniers jours
                 </Button>
                 <Button
                   variant="ghost"
@@ -194,7 +203,7 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
                   className="text-xs"
                   onClick={() => handleDatePreset(DATE_PRESETS.CLEAR)}
                 >
-                  Clear
+                  Effacer
                 </Button>
               </div>
             </PopoverContent>
@@ -203,17 +212,17 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
           <div className="w-px h-8 bg-gray-200 hidden sm:block"></div>
 
           <Select value={statusFilter} onValueChange={onStatusChange}>
-            <SelectTrigger className="w-[140px] border-none shadow-none focus:ring-0 font-medium">
+            <SelectTrigger className="w-[170px] border-none shadow-none focus:ring-0 font-medium" aria-label="Filtrer par statut">
               <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder="Statut" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-              <SelectItem value="sold">Sold</SelectItem>
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              {STATUS_ORDER.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {STATUS_LABELS[status]}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -226,7 +235,7 @@ export const DevisFilters: React.FC<DevisFiltersProps> = React.memo(
                 onClick={onClearFilters}
                 className="text-muted-foreground hover:text-foreground"
               >
-                Clear
+                Effacer
               </Button>
             </>
           )}

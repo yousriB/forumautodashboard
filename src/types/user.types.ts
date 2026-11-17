@@ -4,7 +4,10 @@ export interface User {
   id: string;
   email: string;
   role: UserRole;
+  /** Legacy single-brand column (mirror of the first assigned brand). */
   brand?: string | null;
+  /** Brands assigned to a sales account (public.user_brands). */
+  brands: string[];
   created_at: string;
   updated_at?: string;
 }
@@ -13,7 +16,7 @@ export interface UserFormData {
   email: string;
   password: string;
   role: UserRole;
-  brand: string;
+  brands: string[];
 }
 
 export interface UserState {
@@ -29,10 +32,10 @@ export const roleColors: Record<UserRole, string> = {
   support: 'bg-green-500 text-white',
 };
 
-export const brands = [
-  'ISUZU', 'CHEVROLET', 'CHERY', 'GREAT WALL', 'HAVAL', 'GAC',
-  'TOYOTA', 'SUZUKI', 'MG', 'FORD', 'DFSK', 'DONGFENG',
-  'BYD', 'RENAULT', 'DACIA', 'NISSAN'
-] as const;
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin: 'Administrateur',
+  sales: 'Commercial',
+  support: 'Support',
+};
 
-export type Brand = typeof brands[number];
+// The brand list lives in src/lib/brands.ts (backed by the public.brands table).

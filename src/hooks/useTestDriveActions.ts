@@ -7,6 +7,7 @@ import {
 } from "@/services/testDriveService";
 import { useToast } from "@/hooks/use-toast";
 import { queryKeys } from "@/lib/queryKeys";
+import { TEST_DRIVE_STATUS_LABELS } from "@/lib/reports/types";
 
 /**
  * Test drive mutations via React Query.
@@ -62,8 +63,8 @@ export const useTestDriveActions = (
         setSelectedRequest((prev) => (prev?.id === updated.id ? updated : prev));
       }
       toast({
-        title: "Status Updated",
-        description: `Test drive request ${updated.status} successfully.`,
+        title: "Statut mis à jour",
+        description: `Demande de test drive : ${TEST_DRIVE_STATUS_LABELS[updated.status] ?? updated.status}.`,
       });
     },
     onError: (_err, _vars, ctx) => {
@@ -76,8 +77,8 @@ export const useTestDriveActions = (
         }
       }
       toast({
-        title: "Update Failed",
-        description: "Failed to update test drive status. Please try again.",
+        title: "Échec de la mise à jour",
+        description: "Impossible de modifier le statut du test drive. Veuillez réessayer.",
         variant: "destructive",
       });
     },
@@ -103,15 +104,15 @@ export const useTestDriveActions = (
     },
     onSuccess: () => {
       toast({
-        title: "Request Deleted",
-        description: "Test drive request has been deleted successfully.",
+        title: "Demande supprimée",
+        description: "La demande de test drive a été supprimée.",
       });
     },
     onError: (_err, _requestId, ctx) => {
       if (ctx?.previous) queryClient.setQueryData(queryKeys.testDrives.all, ctx.previous);
       toast({
-        title: "Delete Failed",
-        description: "Failed to delete test drive request. Please try again.",
+        title: "Échec de la suppression",
+        description: "Impossible de supprimer la demande de test drive. Veuillez réessayer.",
         variant: "destructive",
       });
     },

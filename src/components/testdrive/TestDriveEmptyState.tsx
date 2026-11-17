@@ -21,18 +21,18 @@ export const TestDriveEmptyState = React.memo<TestDriveEmptyStateProps>(
           </div>
 
           <h3 className="text-lg font-semibold text-foreground mb-2">
-            {hasFilters ? "No test drives found" : "No test drive requests yet"}
+            {hasFilters ? "Aucun test drive trouvé" : "Aucune demande de test drive pour le moment"}
           </h3>
 
           <p className="text-sm text-muted-foreground text-center mb-4 max-w-sm">
             {hasFilters
-              ? "Try adjusting your search criteria or filters to find test drive requests."
-              : "When customers request test drives, they will appear here for you to manage."}
+              ? "Modifiez la recherche ou les filtres pour trouver des demandes."
+              : "Les demandes d'essai envoyées par les clients apparaîtront ici."}
           </p>
 
           {hasFilters && onClearFilters && (
             <Button variant="outline" onClick={onClearFilters}>
-              Clear Filters
+              Effacer les filtres
             </Button>
           )}
         </div>

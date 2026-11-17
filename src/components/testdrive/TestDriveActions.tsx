@@ -44,7 +44,7 @@ export const TestDriveActions = React.memo<TestDriveActionsProps>(
     return (
       <div className="space-y-3 border-t pt-4">
         <h4 className="font-medium text-foreground text-sm sm:text-base">
-          Quick Actions
+          Actions rapides
         </h4>
 
         <div className="flex flex-col sm:flex-row flex-wrap gap-2">
@@ -55,7 +55,7 @@ export const TestDriveActions = React.memo<TestDriveActionsProps>(
               className="flex items-center gap-1 text-sm"
             >
               <Calendar className="h-4 w-4" />
-              Confirm Request
+              Confirmer la demande
             </Button>
           )}
 
@@ -66,7 +66,7 @@ export const TestDriveActions = React.memo<TestDriveActionsProps>(
               className="flex items-center gap-1 text-sm"
             >
               <CheckCircle className="h-4 w-4" />
-              Mark as Completed
+              Marquer comme effectué
             </Button>
           )}
 
@@ -82,7 +82,7 @@ export const TestDriveActions = React.memo<TestDriveActionsProps>(
               )}&body=${encodeURIComponent(generateEmailBody(request))}`}
             >
               <Mail className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Send Email</span>
+              <span className="hidden sm:inline">Envoyer un email</span>
               <span className="sm:hidden">Email</span>
             </a>
           </Button>
@@ -95,8 +95,8 @@ export const TestDriveActions = React.memo<TestDriveActionsProps>(
           >
             <a href={`tel:${request.phone}`}>
               <Phone className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Call Customer</span>
-              <span className="sm:hidden">Call</span>
+              <span className="hidden sm:inline">Appeler le client</span>
+              <span className="sm:hidden">Appeler</span>
             </a>
           </Button>
 
@@ -108,7 +108,7 @@ export const TestDriveActions = React.memo<TestDriveActionsProps>(
               className="flex items-center gap-1 text-sm"
             >
               <X className="h-4 w-4" />
-              Cancel Request
+              Annuler la demande
             </Button>
           )}
         </div>

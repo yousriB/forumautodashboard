@@ -60,38 +60,45 @@ export interface DevisResponse {
   error?: string;
 }
 
-// Status colors mapping
-export const STATUS_COLORS = {
+// ─── Sales statuses ──────────────────────────────────────────────────────────
+// Stored values are unchanged in the database; only the labels changed.
+//   pending → Nouveau, processing → En cours, sold → Vente confirmée,
+//   completed → Livré, rejected → Annulé
+// Workflow: Nouveau → En cours → Vente confirmée → Livré (Annulé at any step).
+
+/** Display order, following the workflow. */
+export const STATUS_ORDER: DevisStatus[] = ["pending", "processing", "sold", "completed", "rejected"];
+
+export const STATUS_COLORS: Record<DevisStatus, string> = {
   pending: "border-transparent bg-[#f6ebc8] text-[#7a5a0a] hover:bg-[#f6ebc8]",
   processing: "border-transparent bg-[#e7e7e4] text-[#3a3a36] hover:bg-[#e7e7e4]",
+  sold: "border-transparent bg-[#ef1923] text-white hover:bg-[#ef1923]",
   completed: "border-transparent bg-[#e4f0dc] text-[#2f5d24] hover:bg-[#e4f0dc]",
   rejected: "border-transparent bg-[#fbe2da] text-[#9a3415] hover:bg-[#fbe2da]",
-  sold: "border-transparent bg-[#ef1923] text-white hover:bg-[#ef1923]",
-} as const;
+};
 
-// Status display names
-export const STATUS_LABELS = {
-  pending: "Pending",
-  processing: "Processing",
-  completed: "Completed",
-  rejected: "Rejected",
-  sold: "Sold",
-} as const;
+/** Hex colors for charts and PDF exports (same palette as the badges). */
+export const STATUS_HEX: Record<DevisStatus, string> = {
+  pending: "#e9c46a",
+  processing: "#a3a39c",
+  sold: "#ef1923",
+  completed: "#9dc183",
+  rejected: "#f2b8a8",
+};
 
-// Car brands
-export const CAR_BRANDS = [
-  "ISUZU",
-  "CHEVROLET",
-  "CHERY",
-  "GREAT WALL",
-  "HAVAL",
-  "GAC",
-  "TOYOTA",
-  "SUZUKI",
-  "MG",
-  "FORD",
-  "DFSK",
-  "DONGFENG"
-] as const;
+export const STATUS_LABELS: Record<DevisStatus, string> = {
+  pending: "Nouveau",
+  processing: "En cours",
+  sold: "Vente confirmée",
+  completed: "Livré",
+  rejected: "Annulé",
+};
 
-export type CarBrand = typeof CAR_BRANDS[number];
+/** Action wording used in the status menu ("move to …"). */
+export const STATUS_ACTIONS: Record<DevisStatus, string> = {
+  pending: "Remettre en Nouveau",
+  processing: "Passer En cours",
+  sold: "Confirmer la vente",
+  completed: "Marquer Livré",
+  rejected: "Annuler",
+};

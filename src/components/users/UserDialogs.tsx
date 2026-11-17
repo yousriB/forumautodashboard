@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { User, Car, Edit } from 'lucide-react';
-import { User as UserInterface, roleColors } from '@/types/user.types';
+import { User as UserInterface, roleColors, ROLE_LABELS } from '@/types/user.types';
+import { useBrands } from '@/lib/brands';
 import { UserForm, UserFormData } from './UserForm';
 
 interface ViewUserDialogProps {
@@ -39,15 +40,16 @@ interface CreateUserDialogProps {
 }
 
 export const ViewUserDialog = ({ user, open, onOpenChange, onEdit }: ViewUserDialogProps) => {
+  const { labelOf } = useBrands();
   if (!user) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg sm:text-xl">User Details</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">Détails de l’utilisateur</DialogTitle>
           <DialogDescription className="text-sm">
-            View user information and details
+            Informations du compte
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -64,32 +66,36 @@ export const ViewUserDialog = ({ user, open, onOpenChange, onEdit }: ViewUserDia
           
           <div className="space-y-3">
             <div>
-              <Label className="text-xs sm:text-sm font-medium text-muted-foreground">Role</Label>
+              <Label className="text-xs sm:text-sm font-medium text-muted-foreground">Rôle</Label>
               <div className="mt-1">
                 <Badge className={`${roleColors[user.role]} text-xs sm:text-sm`}>
-                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                  {ROLE_LABELS[user.role] ?? user.role}
                 </Badge>
               </div>
             </div>
             
             <div>
-              <Label className="text-xs sm:text-sm font-medium text-muted-foreground">Brand Access</Label>
-              <p className="mt-1 text-xs sm:text-sm">
-                {user.brand ? (
-                  <span className="flex items-center gap-1">
-                    <Car className="h-3 w-3 sm:h-4 sm:w-4" />
-                    {user.brand}
-                  </span>
+              <Label className="text-xs sm:text-sm font-medium text-muted-foreground">Marques attribuées</Label>
+              <div className="mt-1 flex flex-wrap gap-1 text-xs sm:text-sm">
+                {user.role !== 'sales' ? (
+                  user.role === 'admin' ? 'Toutes les marques' : '—'
+                ) : user.brands.length === 0 ? (
+                  <span className="text-destructive">Aucune marque</span>
                 ) : (
-                  "All Brands"
+                  user.brands.map((b) => (
+                    <Badge key={b} variant="secondary" className="font-medium">
+                      <Car className="mr-1 h-3 w-3" />
+                      {labelOf(b)}
+                    </Badge>
+                  ))
                 )}
-              </p>
+              </div>
             </div>
             
             <div>
-              <Label className="text-xs sm:text-sm font-medium text-muted-foreground">Created Date</Label>
+              <Label className="text-xs sm:text-sm font-medium text-muted-foreground">Créé le</Label>
               <p className="mt-1 text-xs sm:text-sm">
-                {new Date(user.created_at).toLocaleDateString()}
+                {new Date(user.created_at).toLocaleDateString('fr-FR')}
               </p>
             </div>
           </div>
@@ -103,14 +109,14 @@ export const ViewUserDialog = ({ user, open, onOpenChange, onEdit }: ViewUserDia
               className="flex-1 text-sm"
             >
               <Edit className="h-4 w-4 mr-2" />
-              Edit User
+              Modifier
             </Button>
             <Button 
               variant="outline" 
               onClick={() => onOpenChange(false)} 
               className="text-sm"
             >
-              Close
+              Fermer
             </Button>
           </div>
         </div>
@@ -127,12 +133,12 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSubmit, isSubmittin
       <DialogContent className="max-w-sm sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-lg sm:text-xl">
-            {user.id ? 'Edit User' : 'Create New User'}
+            {user.id ? 'Modifier l’utilisateur' : 'Nouvel utilisateur'}
           </DialogTitle>
           <DialogDescription className="text-sm">
             {user.id 
-              ? 'Update user information and permissions'
-              : 'Add a new user to the system'}
+              ? 'Rôle, marques attribuées et mot de passe'
+              : 'Ajouter un compte'}
           </DialogDescription>
         </DialogHeader>
         <UserForm
@@ -154,14 +160,14 @@ export const DeleteUserDialog = ({ user, open, onOpenChange, onConfirm, isDeleti
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+          <AlertDialogTitle>Supprimer cet utilisateur ?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will permanently delete the user <span className="font-semibold">{user.email}</span>.
-            This action cannot be undone.
+            Le compte <span className="font-semibold">{user.email}</span> sera supprimé définitivement.
+            Cette action est irréversible.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
           <AlertDialogAction 
             onClick={onConfirm}
             disabled={isDeleting}
@@ -189,10 +195,10 @@ export const DeleteUserDialog = ({ user, open, onOpenChange, onConfirm, isDeleti
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                Deleting...
+                Suppression…
               </span>
             ) : (
-              'Delete User'
+              'Supprimer'
             )}
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -206,9 +212,9 @@ export const CreateUserDialog = ({ open, onOpenChange, onSubmit, isSubmitting }:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg sm:text-xl">Create New User</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">Nouvel utilisateur</DialogTitle>
           <DialogDescription className="text-sm">
-            Add a new user to the system
+            Ajouter un compte au tableau de bord
           </DialogDescription>
         </DialogHeader>
         <UserForm

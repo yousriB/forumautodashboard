@@ -15,6 +15,7 @@ import Settings from "./pages/Settings";
 import Messages from "./pages/Messages";
 import Devis from "./pages/Devis";
 import Newsletters from "./pages/Newsletters";
+import Exports from "./pages/Exports";
 
 // QueryClient with sensible defaults for a low-write, multi-tab dashboard.
 //   - staleTime: dedup repeated reads within a 30s window so navigation
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/testdrive" element={<Testdrive />} />
               <Route path="/devis" element={<Devis />} />
               <Route path="/newsletters" element={<Newsletters />} />
+              <Route path="/exports" element={<Exports />} />
             </Route>
             
             {/* 404 - Not Found */}

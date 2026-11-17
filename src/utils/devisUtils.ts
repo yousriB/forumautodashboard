@@ -19,14 +19,14 @@ export const getStatusLabel = (status: DevisStatus): string => {
  * Format date for display
  */
 export const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString();
+  return new Date(dateString).toLocaleDateString("fr-FR");
 };
 
 /**
  * Format date and time for display
  */
 export const formatDateTime = (dateString: string): string => {
-  return new Date(dateString).toLocaleString();
+  return new Date(dateString).toLocaleString("fr-FR");
 };
 
 /**
@@ -36,21 +36,21 @@ export const getAvailableStatusTransitions = (
   currentStatus: DevisStatus,
   isAdmin: boolean
 ): DevisStatus[] => {
+  // Admins may correct any status. Sales follow the workflow, which the
+  // update_devis_status RPC enforces server-side as well.
   if (isAdmin) {
-    return ['pending', 'processing', 'completed', 'sold', 'rejected'];
+    return ['pending', 'processing', 'sold', 'completed', 'rejected'];
   }
 
   switch (currentStatus) {
-    case 'pending':
+    case 'pending':    // Nouveau
       return ['processing', 'rejected'];
-    case 'processing':
-      return ['completed', 'sold', 'rejected'];
-    case 'completed':
+    case 'processing': // En cours
       return ['sold', 'rejected'];
-    case 'rejected':
-      return []; // No transitions from rejected
-    case 'sold':
-      return []; // No transitions from sold
+    case 'sold':       // Vente confirmée
+      return ['completed', 'rejected'];
+    case 'completed':  // Livré (final)
+    case 'rejected':   // Annulé (final)
     default:
       return [];
   }
@@ -235,9 +235,9 @@ export const sortRequestsByStatus = (requests: DevisRequest[]): DevisRequest[] =
   const statusPriority = {
     pending: 1,
     processing: 2,
-    completed: 3,
-    rejected: 4,
-    sold: 5,
+    sold: 3,
+    completed: 4,
+    rejected: 5,
   };
   
   return [...requests].sort((a, b) => 
@@ -249,7 +249,7 @@ export const sortRequestsByStatus = (requests: DevisRequest[]): DevisRequest[] =
  * Generate mailto link for customer email
  */
 export const generateEmailLink = (request: DevisRequest): string => {
-  const subject = `Devis Request - ${getVehicleDisplayName(request)}`;
+  const subject = `Demande de devis - ${getVehicleDisplayName(request)}`;
   return `mailto:${request.email}?subject=${encodeURIComponent(subject)}`;
 };
 

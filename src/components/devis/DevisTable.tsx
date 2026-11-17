@@ -68,19 +68,19 @@ export const DevisTable: React.FC<DevisTableProps> = React.memo(
             <Table className="min-w-[600px]">
               <TableHeader className="bg-secondary/60">
                 <TableRow>
-                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Customer</TableHead>
-                  <TableHead className="hidden md:table-cell font-semibold text-gray-700 dark:text-gray-300">Vehicle</TableHead>
+                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Client</TableHead>
+                  <TableHead className="hidden md:table-cell font-semibold text-gray-700 dark:text-gray-300">Véhicule</TableHead>
                   {/* Show Price column if type is standard or all (and request has price) */}
                   {(type === "standard" || type === "all") && (
-                    <TableHead className="hidden lg:table-cell font-semibold text-gray-700 dark:text-gray-300">Price</TableHead>
+                    <TableHead className="hidden lg:table-cell font-semibold text-gray-700 dark:text-gray-300">Prix</TableHead>
                   )}
                   {/* Show Region column if type is custom or all (and request has region) */}
                   {(type === "custom" || type === "all") && (
-                    <TableHead className="hidden lg:table-cell font-semibold text-gray-700 dark:text-gray-300">Region</TableHead>
+                    <TableHead className="hidden lg:table-cell font-semibold text-gray-700 dark:text-gray-300">Région</TableHead>
                   )}
                   <TableHead className="hidden sm:table-cell font-semibold text-gray-700 dark:text-gray-300">Contact</TableHead>
                   <TableHead className="hidden sm:table-cell font-semibold text-gray-700 dark:text-gray-300">Note</TableHead>
-                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Status</TableHead>
+                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Statut</TableHead>
                   <TableHead className="hidden sm:table-cell font-semibold text-gray-700 dark:text-gray-300">Date</TableHead>
                   <TableHead className="text-right font-semibold text-gray-700 dark:text-gray-300">Actions</TableHead>
                 </TableRow>
@@ -103,11 +103,11 @@ export const DevisTable: React.FC<DevisTableProps> = React.memo(
             {totalPages > 1 && (
               <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t bg-secondary/60">
                 <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 sm:mb-0">
-                  Showing <span className="font-semibold text-foreground">{startIndex + 1}</span> to{" "}
+                  Affichage de <span className="font-semibold text-foreground">{startIndex + 1}</span> à{" "}
                   <span className="font-semibold text-foreground">
                     {Math.min(endIndex, totalItems)}
                   </span>{" "}
-                  of <span className="font-semibold text-foreground">{totalItems}</span> results
+                  sur <span className="font-semibold text-foreground">{totalItems}</span> résultats
                 </div>
                 <Pagination>
                   <PaginationContent>

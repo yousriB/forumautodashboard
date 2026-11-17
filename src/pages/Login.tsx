@@ -38,7 +38,7 @@ export default function Login() {
           method:      'POST',
           metadata: {
             email,
-            error: authError?.message ?? 'Unknown error',
+            error: authError?.message ?? 'Erreur inconnue',
           },
         });
 
@@ -55,7 +55,7 @@ export default function Login() {
       // its own fetch when the listener fires for the same auth id.
       const { data: profile, error: profileError } = await supabase
         .from("users")
-        .select("id, email, role, brand")
+        .select("id, email, role, brand, user_brands(brand)")
         .or(`id.eq.${authData.user.id},email.eq.${email}`)
         .maybeSingle();
 
@@ -88,6 +88,7 @@ export default function Login() {
         email: authData.user.email ?? email,
         role:  profile.role,
         brand: profile.brand ?? null,
+        brands: ((profile.user_brands ?? []) as { brand: string }[]).map((b) => b.brand).sort(),
       });
 
       // ── 5. Redirect by role ───────────────────────────────────────────────

@@ -6,6 +6,8 @@ export interface TestDriveRequest {
   email: string;
   phone: string;
   car_model: string;
+  /** Derived in the database from car_model (trigger test_drive_set_brand). */
+  car_brand: string | null;
   status: TestDriveStatus;
   created_at: string;
   updated_at?: string;
@@ -22,6 +24,7 @@ export interface TestDriveStats {
 export interface TestDriveFilters {
   searchTerm: string;
   statusFilter: string;
+  brandFilter?: string;
 }
 
 export interface TestDriveActions {

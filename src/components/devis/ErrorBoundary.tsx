@@ -56,14 +56,14 @@ const DefaultErrorFallback: React.FC<{
   <div className="flex items-center justify-center min-h-[400px] p-8">
     <Alert className="max-w-md">
       <AlertTriangle className="h-4 w-4" />
-      <AlertTitle>Something went wrong</AlertTitle>
+      <AlertTitle>Une erreur est survenue</AlertTitle>
       <AlertDescription className="mt-2">
         {error?.message ||
-          "An unexpected error occurred while loading the devis data."}
+          "Une erreur inattendue s'est produite lors du chargement des devis."}
       </AlertDescription>
       <Button variant="outline" size="sm" onClick={resetError} className="mt-4">
         <RefreshCw className="h-4 w-4 mr-2" />
-        Try Again
+        Réessayer
       </Button>
     </Alert>
   </div>

@@ -28,6 +28,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
+import { STATUS_HEX, STATUS_LABELS } from "@/types/devis";
+import { useBrands } from "@/lib/brands";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   Select,
@@ -53,13 +55,13 @@ const EMPTY_STATS: MonthlyCarStats = {
   rejected_count: 0,
 };
 
-// Color Palette mapping for statuses
+// Same palette as the status badges (types/devis.ts).
 const STATUS_COLORS = {
-  created: "#e9c46a",    // amber  — pending
-  processing: "#a3a39c", // stone  — processing
-  completed: "#9dc183",  // green  — completed
-  sold: "#ef1923",       // brand  — sold
-  rejected: "#f2b8a8",   // blush  — rejected
+  created: STATUS_HEX.pending,
+  processing: STATUS_HEX.processing,
+  completed: STATUS_HEX.completed,
+  sold: STATUS_HEX.sold,
+  rejected: STATUS_HEX.rejected,
 };
 
 export default function Dashboard() {
@@ -69,16 +71,14 @@ export default function Dashboard() {
   const [selectedMonth, setSelectedMonth] = useState((currentDate.getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
 
-  const brands = [
-    "ISUZU", "CHEVROLET", "CHERY", "GREAT WALL", "HAVAL", "GAC", "TOYOTA",
-    "SUZUKI", "MG", "FORD", "DFSK", "DONGFENG", "BYD", "RENAULT", "DACIA", "NISSAN",
-  ];
+  // Active brands plus retired ones (FORD) so history stays reachable.
+  const { brands, labelOf } = useBrands();
 
   const months = useMemo(
     () =>
       Array.from({ length: 12 }, (_, i) => ({
         value: (i + 1).toString(),
-        label: new Date(0, i).toLocaleString("en-US", { month: "long" }),
+        label: new Date(0, i).toLocaleString("fr-FR", { month: "long" }).replace(/^./, (c) => c.toUpperCase()),
       })),
     []
   );
@@ -112,11 +112,11 @@ export default function Dashboard() {
 
   // Prepare Chart Data
   const chartData = [
-    { name: "Pending", value: stats.created_count, color: STATUS_COLORS.created },
-    { name: "Processing", value: stats.processing_count, color: STATUS_COLORS.processing },
-    { name: "Completed", value: stats.completed_count, color: STATUS_COLORS.completed },
-    { name: "Sold", value: stats.sold_count, color: STATUS_COLORS.sold },
-    { name: "Rejected", value: stats.rejected_count, color: STATUS_COLORS.rejected },
+    { name: STATUS_LABELS.pending, value: stats.created_count, color: STATUS_COLORS.created },
+    { name: STATUS_LABELS.processing, value: stats.processing_count, color: STATUS_COLORS.processing },
+    { name: STATUS_LABELS.sold, value: stats.sold_count, color: STATUS_COLORS.sold },
+    { name: STATUS_LABELS.completed, value: stats.completed_count, color: STATUS_COLORS.completed },
+    { name: STATUS_LABELS.rejected, value: stats.rejected_count, color: STATUS_COLORS.rejected },
   ].filter(item => item.value > 0); // Hide empty slices
 
   const totalRequests = 
@@ -131,11 +131,11 @@ export default function Dashboard() {
   const conversion = pct(stats.sold_count);
   const rejection = pct(stats.rejected_count);
   const breakdown = [
-    { label: "Pending", value: stats.created_count, color: STATUS_COLORS.created },
-    { label: "Processing", value: stats.processing_count, color: STATUS_COLORS.processing },
-    { label: "Completed", value: stats.completed_count, color: STATUS_COLORS.completed },
-    { label: "Sold", value: stats.sold_count, color: STATUS_COLORS.sold },
-    { label: "Rejected", value: stats.rejected_count, color: STATUS_COLORS.rejected },
+    { label: STATUS_LABELS.pending, value: stats.created_count, color: STATUS_COLORS.created },
+    { label: STATUS_LABELS.processing, value: stats.processing_count, color: STATUS_COLORS.processing },
+    { label: STATUS_LABELS.sold, value: stats.sold_count, color: STATUS_COLORS.sold },
+    { label: STATUS_LABELS.completed, value: stats.completed_count, color: STATUS_COLORS.completed },
+    { label: STATUS_LABELS.rejected, value: stats.rejected_count, color: STATUS_COLORS.rejected },
   ];
 
   return (
@@ -144,7 +144,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex flex-col gap-4 pb-2 pt-2 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="eyebrow">Overview · {selectedBrand === "All" ? "All brands" : selectedBrand}</p>
+            <p className="eyebrow">Vue d’ensemble · {selectedBrand === "All" ? "Toutes les marques" : labelOf(selectedBrand)}</p>
             <h1 className="mt-2 text-4xl font-light tracking-tight text-foreground sm:text-5xl">
               {monthLabel} <span className="text-muted-foreground/60">{selectedYear}</span>
             </h1>
@@ -153,19 +153,22 @@ export default function Dashboard() {
           {/* Filters */}
           <div className="grid w-full grid-cols-[1.2fr_1.2fr_1fr] items-center gap-1 rounded-full bg-card p-1.5 shadow-card sm:flex sm:w-auto">
             <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-              <SelectTrigger className="h-9 w-full sm:w-[140px] rounded-full border-none bg-secondary font-medium shadow-none focus:ring-0 focus:ring-offset-0">
-                <SelectValue placeholder="Brand" />
+              <SelectTrigger className="h-9 w-full sm:w-[170px] rounded-full border-none bg-secondary font-medium shadow-none focus:ring-0 focus:ring-offset-0">
+                <SelectValue placeholder="Marque" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="All">All Brands</SelectItem>
+                <SelectItem value="All">Toutes les marques</SelectItem>
                 {brands.map((brand) => (
-                  <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                  <SelectItem key={brand.code} value={brand.code}>
+                    {brand.label}
+                    {!brand.active && " (historique)"}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
               <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-full border-none bg-transparent font-medium shadow-none focus:ring-0 focus:ring-offset-0">
-                <SelectValue placeholder="Month" />
+                <SelectValue placeholder="Mois" />
               </SelectTrigger>
               <SelectContent>
                 {months.map((month) => (
@@ -175,7 +178,7 @@ export default function Dashboard() {
             </Select>
             <Select value={selectedYear} onValueChange={setSelectedYear}>
               <SelectTrigger className="h-9 w-full sm:w-[96px] rounded-full border-none bg-primary font-medium text-primary-foreground shadow-none focus:ring-0 focus:ring-offset-0">
-                <SelectValue placeholder="Year" />
+                <SelectValue placeholder="Année" />
               </SelectTrigger>
               <SelectContent>
                 {years.map((year) => (
@@ -190,13 +193,13 @@ export default function Dashboard() {
         <section className="relative overflow-hidden rounded-3xl bg-ink p-6 text-white sm:p-8">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-medium">Conversion</h2>
+              <h2 className="text-xl font-medium">Taux de conversion</h2>
               <p className="mt-1 max-w-sm text-sm text-white/60">
-                Share of events that ended in a sale in {monthLabel}, out of {totalRequests} recorded.
+                Part des demandes du mois de {monthLabel} dont le dernier statut atteint est « Vente confirmée », sur {totalRequests}.
               </p>
             </div>
             <span className="shrink-0 rounded-full bg-white/10 px-3 py-1 font-mono text-xs text-white/80">
-              {rejection.toFixed(1)}% rejected
+              {rejection.toFixed(1)}% annulés
             </span>
           </div>
 
@@ -231,15 +234,15 @@ export default function Dashboard() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-          <StatsCard title="Pending" value={stats.created_count} icon={Calendar} description="Created this month" tone="amber" />
-          <StatsCard title="Processing" value={stats.processing_count} icon={Loader2} description="Active processing" tone="stone" />
-          <StatsCard title="Completed" value={stats.completed_count} icon={CheckCircle2} description="Finished requests" tone="green" />
-          <StatsCard title="Sold" value={stats.sold_count} icon={DollarSign} description="Closed sales" tone="brand" />
+          <StatsCard title={STATUS_LABELS.pending} value={stats.created_count} icon={Calendar} description="Reçues ce mois-ci" tone="amber" />
+          <StatsCard title={STATUS_LABELS.processing} value={stats.processing_count} icon={Loader2} description="Passées en traitement" tone="stone" />
+          <StatsCard title={STATUS_LABELS.sold} value={stats.sold_count} icon={DollarSign} description="Ventes conclues" tone="brand" />
+          <StatsCard title={STATUS_LABELS.completed} value={stats.completed_count} icon={CheckCircle2} description="Véhicules livrés" tone="green" />
           <StatsCard
-            title="Rejected"
+            title={STATUS_LABELS.rejected}
             value={stats.rejected_count}
             icon={XCircle}
-            description="Dropped requests"
+            description="Ventes annulées"
             tone="coral"
             className="col-span-2 lg:col-span-1"
           />
@@ -249,9 +252,9 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Activity distribution</CardTitle>
+              <CardTitle>Répartition de l’activité</CardTitle>
               <CardDescription>
-                Breakdown of {totalRequests} total events recorded in {monthLabel}.
+                Répartition des {totalRequests} demandes actives en {monthLabel}, selon le dernier statut atteint.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -289,7 +292,7 @@ export default function Dashboard() {
               ) : (
                 <div className="flex h-[300px] flex-col items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
                   <Car className="mb-2 h-10 w-10 opacity-25" />
-                  <p className="text-sm">No activity found for this period</p>
+                  <p className="text-sm">Aucune activité sur cette période</p>
                 </div>
               )}
             </CardContent>
@@ -297,13 +300,13 @@ export default function Dashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Monthly rates</CardTitle>
-              <CardDescription>Key performance indicators</CardDescription>
+              <CardTitle>Taux du mois</CardTitle>
+              <CardDescription>Indicateurs clés</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {[
-                { label: "Conversion", hint: "Sold / all", value: conversion, bar: "bg-brand" },
-                { label: "Rejection", hint: "Rejected / all", value: rejection, bar: "bg-[#f2b8a8]" },
+                { label: "Conversion", hint: "Ventes confirmées / total", value: conversion, bar: "bg-brand" },
+                { label: "Annulation", hint: "Annulés / total", value: rejection, bar: "bg-[#f2b8a8]" },
               ].map((r) => (
                 <div key={r.label} className="rounded-2xl bg-secondary p-4">
                   <div className="flex items-baseline justify-between">
@@ -317,8 +320,8 @@ export default function Dashboard() {
                 </div>
               ))}
               <p className="px-1 pt-1 text-xs leading-relaxed text-muted-foreground">
-                These stats reflect actions taken in <span className="font-medium text-foreground">{monthLabel}</span>.
-                A car is counted only if its status changed during this month.
+                Ces chiffres reflètent les actions de <span className="font-medium text-foreground">{monthLabel}</span> :
+                une demande n’est comptée que si son statut a changé pendant ce mois.
               </p>
             </CardContent>
           </Card>

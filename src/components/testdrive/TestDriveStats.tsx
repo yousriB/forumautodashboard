@@ -10,10 +10,10 @@ interface TestDriveStatsProps {
 export const TestDriveStats = React.memo<TestDriveStatsProps>(({ stats }) => {
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-      <StatsCard title="Total requests" value={stats.total} icon={Car} description="All test drives" tone="stone" />
-      <StatsCard title="Pending" value={stats.pending} icon={Clock} description="Awaiting reply" tone="amber" />
-      <StatsCard title="Confirmed" value={stats.confirmed} icon={Calendar} description="Booked" tone="ink" />
-      <StatsCard title="Completed" value={stats.completed} icon={CheckCircle} description="Driven" tone="green" />
+      <StatsCard title="Total demandes" value={stats.total} icon={Car} description="Tous les test drives" tone="stone" />
+      <StatsCard title="En attente" value={stats.pending} icon={Clock} description="En attente de réponse" tone="amber" />
+      <StatsCard title="Confirmés" value={stats.confirmed} icon={Calendar} description="Planifiés" tone="ink" />
+      <StatsCard title="Effectués" value={stats.completed} icon={CheckCircle} description="Essais réalisés" tone="green" />
     </div>
   );
 });

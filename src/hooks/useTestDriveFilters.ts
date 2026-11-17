@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { useDebounce } from "./useDebounce";
 import { TestDriveRequest, TestDriveFilters } from "@/types/testDrive";
-import { filterTestDriveRequests } from "@/utils/testDriveUtils";
+import { filterByBrand, filterTestDriveRequests } from "@/utils/testDriveUtils";
 import { SEARCH_DEBOUNCE_DELAY } from "@/constants/testDrive";
 
 export const useTestDriveFilters = (requests: TestDriveRequest[]) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [brandFilter, setBrandFilter] = useState("all");
 
   // Debounce search term to avoid excessive filtering
   const debouncedSearchTerm = useDebounce(searchTerm, SEARCH_DEBOUNCE_DELAY);
@@ -18,9 +19,16 @@ export const useTestDriveFilters = (requests: TestDriveRequest[]) => {
     const filters: TestDriveFilters = {
       searchTerm: debouncedSearchTerm,
       statusFilter,
+      brandFilter,
     };
     return filterTestDriveRequests(requests, filters);
-  }, [requests, debouncedSearchTerm, statusFilter]);
+  }, [requests, debouncedSearchTerm, statusFilter, brandFilter]);
+
+  // Brand only: feeds the stat cards so counters follow the brand filter.
+  const brandFilteredRequests = useMemo(
+    () => filterByBrand(requests, brandFilter),
+    [requests, brandFilter]
+  );
 
   const updateSearchTerm = (term: string) => {
     setSearchTerm(term);
@@ -33,15 +41,19 @@ export const useTestDriveFilters = (requests: TestDriveRequest[]) => {
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
+    setBrandFilter("all");
   };
 
   return {
     searchTerm,
     statusFilter,
+    brandFilter,
     filteredRequests,
+    brandFilteredRequests,
     updateSearchTerm,
     updateStatusFilter,
+    updateBrandFilter: setBrandFilter,
     clearFilters,
-    hasActiveFilters: searchTerm !== "" || statusFilter !== "all",
+    hasActiveFilters: searchTerm !== "" || statusFilter !== "all" || brandFilter !== "all",
   };
 };

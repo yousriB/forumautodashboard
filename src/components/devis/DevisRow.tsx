@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Eye, Trash, Car, DollarSign } from "lucide-react";
-import { DevisRequest, DevisType } from "@/types/devis";
+import { DevisRequest, DevisType, STATUS_ACTIONS, STATUS_LABELS } from "@/types/devis";
 import { StatusBadge } from "./StatusBadge";
 import {
   formatDate,
@@ -17,6 +17,7 @@ import {
   getLatestStatusDate,
 } from "@/utils/devisUtils";
 import { useUser } from "@/context/UserContext";
+import { useBrands } from "@/lib/brands";
 
 interface DevisRowProps {
   request: DevisRequest;
@@ -30,6 +31,8 @@ interface DevisRowProps {
 export const DevisRow: React.FC<DevisRowProps> = React.memo(
   ({ request, type, loading, onView, onStatusChange, onDelete }) => {
     const { user } = useUser();
+    const { labelOf } = useBrands();
+    const brandName = labelOf(request.car_brand);
     const availableTransitions = getAvailableStatusTransitions(
       request.status,
       user?.role === "admin"
@@ -68,7 +71,7 @@ export const DevisRow: React.FC<DevisRowProps> = React.memo(
             <div className="md:hidden mt-2 space-y-1">
               <div className="text-xs text-muted-foreground flex items-center gap-1">
                 <Car className="h-3 w-3" />
-                {request.car_brand} {request.car_model}
+                {brandName} {request.car_model}
               </div>
               {"car_price" in request && request.car_price && (
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -90,7 +93,7 @@ export const DevisRow: React.FC<DevisRowProps> = React.memo(
             {/* <Car className="h-4 w-4 text-muted-foreground" /> */}
             <div>
               <div className="font-medium">
-                {request.car_brand} {request.car_model}
+                {brandName} {request.car_model}
               </div>
               <div className="text-sm text-muted-foreground">
                 {request.car_version}
@@ -154,25 +157,25 @@ export const DevisRow: React.FC<DevisRowProps> = React.memo(
               onValueChange={handleStatusChange}
               disabled={loading}
             >
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="w-40" aria-label="Changer le statut">
+                <SelectValue placeholder="Statut" />
               </SelectTrigger>
               <SelectContent>
-                {availableTransitions.length > 0 ? (
-                  availableTransitions.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status === "processing" && "Processing"}
-                      {status === "completed" && "Complete"}
-                      {status === "sold" && "Mark as Sold"}
-                      {status === "rejected" && "Reject"}
-                    </SelectItem>
-                  ))
-                ) : (
+                {/* The current status is always listed so the trigger shows its label. */}
+                {!availableTransitions.includes(request.status) && (
                   <SelectItem value={request.status} disabled>
-                    {request.status === "rejected" && "Rejected"}
-                    {request.status === "sold" && "Sold"}
+                    {STATUS_LABELS[request.status] ?? request.status}
                   </SelectItem>
                 )}
+                {availableTransitions.map((status) => (
+                  <SelectItem key={status} value={status} disabled={status === request.status}>
+                    {status === request.status
+                      ? STATUS_LABELS[status]
+                      : user?.role === "admin"
+                        ? STATUS_LABELS[status]
+                        : STATUS_ACTIONS[status]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -180,6 +183,7 @@ export const DevisRow: React.FC<DevisRowProps> = React.memo(
               <Button
                 variant="ghost"
                 size="sm"
+                aria-label="Supprimer la demande"
                 onClick={handleDelete}
                 disabled={loading}
               >

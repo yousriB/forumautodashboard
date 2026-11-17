@@ -41,50 +41,45 @@ export const DevisStats: React.FC<DevisStatsProps> = React.memo(
         }`}
       >
         <StatsCard
-          title="Total Requests"
+          title="Total demandes"
           value={stats.total}
           icon={FileText}
-          description="All time requests"
+          description="Selon les filtres"
           tone="stone"
         />
         <StatsCard
-          title="Pending"
+          title="Nouveau"
           value={stats.pending}
           icon={Calendar}
-          description="Awaiting action"
+          description="À traiter"
           tone="amber"
         />
         <StatsCard
-          title="Processing"
+          title="En cours"
           value={stats.processing}
           icon={Loader2}
-          description="In progress"
+          description="En traitement"
           tone="stone"
         />
         <StatsCard
-          title="Completed"
+          title="Vente confirmée"
+          value={stats.sold}
+          icon={DollarSign}
+          description="Ventes conclues"
+          tone="ink"
+        />
+        <StatsCard
+          title="Livré"
           value={stats.completed}
           icon={CheckCircle2}
-          description="Finished"
+          description="Véhicules livrés"
           tone="green"
         />
         <StatsCard
-          title="Sold"
-          value={stats.sold}
-          icon={DollarSign}
-          description="Closed deals"
-          tone="ink"
-        />
-        {/* We can omit Rejected or add it if needed, layout fits 5 nicely. 
-            If we want 6, grid-cols-3 or similar. 
-            Dashboard has 5 cards. Let's stick to 5 or add Rejected as 6th.
-            Let's add Rejected as it's important.
-        */}
-         <StatsCard
-          title="Rejected"
+          title="Annulé"
           value={stats.rejected}
           icon={X}
-          description="Declined"
+          description="Ventes annulées"
           tone="coral"
         />
       </div>

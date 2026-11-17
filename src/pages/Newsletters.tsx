@@ -1,10 +1,11 @@
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Mail, Search, Send, X } from 'lucide-react';
+import { Loader2, Mail, Search, Send, Trash2, X } from 'lucide-react';
+import { ConfirmDeleteDialog } from '@/components/ConfirmDeleteDialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -49,6 +50,33 @@ const Newsletters = () => {
 
   const error = queryError instanceof Error ? queryError.message : null;
 
+  // Delete a subscriber (admins only — newsletter_admin_delete policy).
+  // `.select('id')` returns the deleted row, so a refused delete is reported.
+  const queryClient = useQueryClient();
+  const [pendingDelete, setPendingDelete] = useState<Subscription | null>(null);
+  const deleteMutation = useMutation<void, Error, Subscription>({
+    mutationFn: async (subscription) => {
+      const { data, error: delErr } = await supabase
+        .from('newsletter_subscriptions')
+        .delete()
+        .eq('id', subscription.id)
+        .select('id');
+      if (delErr) throw new Error(delErr.message);
+      if (!data || data.length === 0) throw new Error('Suppression refusée ou abonné introuvable.');
+    },
+    onSuccess: (_d, subscription) => {
+      queryClient.setQueryData<Subscription[]>(queryKeys.newsletters.all, (old) =>
+        (old ?? []).filter((s) => s.id !== subscription.id)
+      );
+      setSelectedEmails((prev) => prev.filter((e) => e !== subscription.email));
+      setPendingDelete(null);
+      toast({ title: 'Abonné supprimé', description: subscription.email });
+    },
+    onError: (err) => {
+      toast({ title: 'Suppression impossible', description: err.message, variant: 'destructive' });
+    },
+  });
+
   const filteredSubscriptions = subscriptions.filter(subscription =>
     subscription.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -72,8 +100,8 @@ const Newsletters = () => {
   const handleSendEmail = () => {
     if (!emailContent.subject || !emailContent.message) {
       toast({
-        title: 'Error',
-        description: 'Please fill in all fields',
+        title: 'Champs manquants',
+        description: 'Veuillez renseigner l\'objet et le message.',
         variant: 'destructive',
       });
       return;
@@ -85,7 +113,7 @@ const Newsletters = () => {
         : selectedEmails;
 
       if (emailsToSend.length === 0) {
-        throw new Error('No recipients selected');
+        throw new Error('Aucun destinataire sélectionné');
       }
 
       // Encode the subject and body for URL
@@ -104,8 +132,8 @@ const Newsletters = () => {
     } catch (error) {
       console.error('Error preparing email:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to prepare email. Please try again.',
+        title: 'Erreur',
+        description: 'Impossible de préparer l\'email. Veuillez réessayer.',
         variant: 'destructive',
       });
     }
@@ -117,9 +145,9 @@ const Newsletters = () => {
         {/* Page Header */}
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 gap-4">
           <div className="flex-1">
-            <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">Newsletter Subscribers</h1>
+            <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">Abonnés à la newsletter</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-2">
-              Manage your newsletter subscribers
+              Gérer les abonnés à la newsletter
             </p>
           </div>
           <Button 
@@ -128,7 +156,7 @@ const Newsletters = () => {
             disabled={loading || subscriptions.length === 0}
           >
             <Send className="h-4 w-4" />
-            Send Newsletter
+            Envoyer la newsletter
           </Button>
         </div>
 
@@ -137,7 +165,7 @@ const Newsletters = () => {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by email..."
+              placeholder="Rechercher par email…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
@@ -159,30 +187,30 @@ const Newsletters = () => {
                   />
                 </TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead className="hidden md:table-cell">Subscribed On</TableHead>
+                <TableHead className="hidden md:table-cell">Inscrit le</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8">
+                  <TableCell colSpan={4} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Loading subscribers...</span>
+                      <span>Chargement des abonnés…</span>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : error ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8 text-destructive">
+                  <TableCell colSpan={4} className="text-center py-8 text-destructive">
                     {error}
                   </TableCell>
                 </TableRow>
               ) : filteredSubscriptions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? 'No matching subscribers found' : 'No subscribers yet'}
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    {searchTerm ? 'Aucun abonné ne correspond à la recherche' : 'Aucun abonné pour le moment'}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -201,14 +229,23 @@ const Newsletters = () => {
                       {subscription.email}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {new Date(subscription.created_at).toLocaleDateString('en-US', {
+                      {new Date(subscription.created_at).toLocaleDateString('fr-FR', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
                       })}
                     </TableCell>
                     <TableCell className="text-right">
-                      {/* Add action buttons here if needed */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        aria-label={`Supprimer l'abonné ${subscription.email}`}
+                        onClick={() => setPendingDelete(subscription)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -220,11 +257,11 @@ const Newsletters = () => {
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="stat-card">
-            <h3 className="text-sm font-medium text-muted-foreground">Total Subscribers</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">Total des abonnés</h3>
             <p className="text-2xl font-bold">{subscriptions.length}</p>
           </div>
           <div className="stat-card">
-            <h3 className="text-sm font-medium text-muted-foreground">New This Month</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">Nouveaux ce mois-ci</h3>
             <p className="text-2xl font-bold">
               {subscriptions.filter(sub => {
                 const subDate = new Date(sub.created_at);
@@ -235,22 +272,38 @@ const Newsletters = () => {
           </div>
         </div>
 
+        <ConfirmDeleteDialog
+          open={!!pendingDelete}
+          onOpenChange={(open) => !open && setPendingDelete(null)}
+          title="Supprimer cet abonné ?"
+          description={
+            pendingDelete && (
+              <p>
+                <span className="font-medium text-foreground">{pendingDelete.email}</span> sera retiré
+                de la liste des abonnés à la newsletter.
+              </p>
+            )
+          }
+          isDeleting={deleteMutation.isPending}
+          onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete)}
+        />
+
         {/* Send Email Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>Send Newsletter</DialogTitle>
+              <DialogTitle>Envoyer la newsletter</DialogTitle>
               <DialogDescription>
-                {`Compose your newsletter to ${emailContent.isBulk ? `all ${filteredSubscriptions.length} subscribers` : `${selectedEmails.length} selected subscribers`}`}
+                {`Rédigez votre newsletter pour ${emailContent.isBulk ? `les ${filteredSubscriptions.length} abonnés` : `${selectedEmails.length} abonné(s) sélectionné(s)`}`}
               </DialogDescription>
             </DialogHeader>
             
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="subject">Subject</Label>
+                <Label htmlFor="subject">Objet</Label>
                 <Input
                   id="subject"
-                  placeholder="Enter email subject"
+                  placeholder="Objet de l'email"
                   value={emailContent.subject}
                   onChange={(e) => setEmailContent({...emailContent, subject: e.target.value})}
                 />
@@ -260,7 +313,7 @@ const Newsletters = () => {
                 <Label htmlFor="message">Message</Label>
                 <Textarea
                   id="message"
-                  placeholder="Write your newsletter content here..."
+                  placeholder="Rédigez le contenu de la newsletter…"
                   className="min-h-[200px]"
                   value={emailContent.message}
                   onChange={(e) => setEmailContent({...emailContent, message: e.target.value})}
@@ -279,7 +332,7 @@ const Newsletters = () => {
                   htmlFor="sendToAll"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  Send to all {filteredSubscriptions.length} subscribers
+                  Envoyer aux {filteredSubscriptions.length} abonnés
                 </label>
               </div>
             </div>
@@ -293,7 +346,7 @@ const Newsletters = () => {
                 }}
                 disabled={isSending}
               >
-                Cancel
+                Annuler
               </Button>
               <Button 
                 onClick={handleSendEmail}
@@ -302,12 +355,12 @@ const Newsletters = () => {
                 {isSending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
+                    Envoi…
                   </>
                 ) : (
                   <>
                     <Send className="mr-2 h-4 w-4" />
-                    Send to {emailContent.isBulk ? `All (${filteredSubscriptions.length})` : `Selected (${selectedEmails.length})`}
+                    Envoyer {emailContent.isBulk ? `à tous (${filteredSubscriptions.length})` : `à la sélection (${selectedEmails.length})`}
                   </>
                 )}
               </Button>

@@ -32,7 +32,7 @@ export const fetchTestDriveRequests = async (
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') throw error;
     console.error('Error fetching test drive requests:', error);
-    throw new Error('Failed to fetch test drive requests');
+    throw new Error('Impossible de charger les demandes de test drive');
   }
 };
 
@@ -47,11 +47,11 @@ export const updateTestDriveStatus = async (
   newStatus: TestDriveStatus
 ): Promise<TestDriveRequest> => {
   if (!requestId || typeof requestId !== 'string') {
-    throw new Error('Invalid request ID provided');
+    throw new Error('Identifiant de demande invalide');
   }
 
   if (!newStatus || !['pending', 'confirmed', 'completed', 'cancelled'].includes(newStatus)) {
-    throw new Error('Invalid status provided');
+    throw new Error('Statut invalide');
   }
 
   const { data, error } = await supabase.rpc('update_test_drive_status', {
@@ -61,7 +61,7 @@ export const updateTestDriveStatus = async (
 
   if (error) {
     console.error('Supabase error details:', error);
-    throw new Error(`Failed to update test drive status: ${error.message}`);
+    throw new Error(`Impossible de modifier le statut du test drive : ${error.message}`);
   }
 
   return cleanTestDriveData(data as TestDriveRequest);
@@ -80,7 +80,7 @@ export const deleteTestDriveRequest = async (requestId: string): Promise<void> =
     if (error) throw error;
   } catch (error) {
     console.error('Error deleting test drive request:', error);
-    throw new Error('Failed to delete test drive request');
+    throw new Error('Impossible de supprimer la demande de test drive');
   }
 };
 
@@ -100,7 +100,7 @@ export const getTestDriveRequestById = async (requestId: string): Promise<TestDr
     return cleanTestDriveData(data);
   } catch (error) {
     console.error('Error fetching test drive request:', error);
-    throw new Error('Failed to fetch test drive request');
+    throw new Error('Impossible de charger la demande de test drive');
   }
 };
 
@@ -126,6 +126,6 @@ export const createTestDriveRequest = async (
     return cleanTestDriveData(data);
   } catch (error) {
     console.error('Error creating test drive request:', error);
-    throw new Error('Failed to create test drive request');
+    throw new Error('Impossible de créer la demande de test drive');
   }
 };

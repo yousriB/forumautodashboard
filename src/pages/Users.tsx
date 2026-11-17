@@ -11,6 +11,8 @@ import { UserTable } from "@/components/users/UserTable";
 import { ViewUserDialog, EditUserDialog, DeleteUserDialog, CreateUserDialog } from "@/components/users/UserDialogs";
 import { UserFormData } from "@/components/users/UserForm";
 import { User } from "@/types/user.types";
+import { useBrands } from "@/lib/brands";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Users() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -25,6 +27,7 @@ export default function Users() {
   // mutation — useUserMutations invalidates the ['users'] query, and React
   // Query refetches lazily only if this page is still mounted.
   const { users, loading, error } = useUsers();
+  const { toast } = useToast();
   const {
     createUser,
     updateUser,
@@ -37,16 +40,17 @@ export default function Users() {
   // re-runs the filter on every keystroke, and the filtered array is stable
   // between renders for the table to reconcile cheaply.
   const debouncedSearchTerm = useDebounce(searchTerm, 250);
+  const { labelOf } = useBrands();
   const filteredUsers = useMemo(() => {
     const q = debouncedSearchTerm.toLowerCase();
     return users.filter((user) => {
       const matchesSearch =
         user.email.toLowerCase().includes(q) ||
-        (user.brand && user.brand.toLowerCase().includes(q));
+        user.brands.some((b) => b.toLowerCase().includes(q) || labelOf(b).toLowerCase().includes(q));
       const matchesRole = roleFilter === "all" || user.role === roleFilter;
       return matchesSearch && matchesRole;
     });
-  }, [users, debouncedSearchTerm, roleFilter]);
+  }, [users, debouncedSearchTerm, roleFilter, labelOf]);
 
   // Handlers
   const handleViewUser = (user: User) => {
@@ -71,13 +75,19 @@ export default function Users() {
         email: formData.email,
         password: formData.password,
         role: formData.role,
-        brand: formData.brand || null,
+        brands: formData.role === "sales" ? formData.brands : [],
       };
       
       await createUser(userData);
       setIsCreateDialogOpen(false);
+      toast({ title: "Utilisateur créé", description: formData.email });
     } catch (error) {
       console.error('Error creating user:', error);
+      toast({
+        title: "Création impossible",
+        description: error instanceof Error ? error.message : "Erreur inconnue",
+        variant: "destructive",
+      });
     }
   };
 
@@ -86,10 +96,9 @@ export default function Users() {
     
     try {
       // Only include password if it was provided
-      const updateData: any = {
-        email: formData.email,
+      const updateData: Partial<UserFormData> = {
         role: formData.role,
-        brand: formData.brand || null,
+        brands: formData.role === "sales" ? formData.brands : [],
       };
       
       if (formData.password) {
@@ -99,8 +108,14 @@ export default function Users() {
       await updateUser(selectedUser.id, updateData);
       setIsEditDialogOpen(false);
       setSelectedUser(null);
+      toast({ title: "Utilisateur mis à jour", description: formData.email });
     } catch (error) {
       console.error('Error updating user:', error);
+      toast({
+        title: "Modification impossible",
+        description: error instanceof Error ? error.message : "Erreur inconnue",
+        variant: "destructive",
+      });
     }
   };
 
@@ -111,8 +126,14 @@ export default function Users() {
       await deleteUser(selectedUser.id);
       setIsDeleteDialogOpen(false);
       setSelectedUser(null);
+      toast({ title: "Utilisateur supprimé" });
     } catch (error) {
       console.error('Error deleting user:', error);
+      toast({
+        title: "Suppression impossible",
+        description: error instanceof Error ? error.message : "Erreur inconnue",
+        variant: "destructive",
+      });
     }
   };
 
@@ -121,9 +142,9 @@ export default function Users() {
       <div className="space-y-6">
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 gap-4">
           <div className="flex-1">
-            <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">User Management</h1>
+            <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground">Gestion des utilisateurs</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-2">
-              Manage system users, roles, and permissions
+              Gérer les comptes, les rôles et les marques attribuées
             </p>
           </div>
           <Button 
@@ -131,7 +152,7 @@ export default function Users() {
             onClick={() => setIsCreateDialogOpen(true)}
           >
             <Plus className="h-4 w-4" />
-            Add New User
+            Nouvel utilisateur
           </Button>
         </div>
 
@@ -140,7 +161,7 @@ export default function Users() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input 
-              placeholder="Search by email or brand..." 
+              placeholder="Rechercher par email ou marque…" 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
               className="pl-9" 
@@ -149,12 +170,12 @@ export default function Users() {
           <Select value={roleFilter} onValueChange={setRoleFilter}>
             <SelectTrigger className="w-full sm:w-48">
               <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by role" />
+              <SelectValue placeholder="Filtrer par rôle" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="sales">Sales</SelectItem>
+              <SelectItem value="all">Tous les rôles</SelectItem>
+              <SelectItem value="admin">Administrateur</SelectItem>
+              <SelectItem value="sales">Commercial</SelectItem>
               <SelectItem value="support">Support</SelectItem>
             </SelectContent>
           </Select>

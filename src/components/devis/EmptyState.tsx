@@ -20,31 +20,31 @@ export const EmptyState: React.FC<EmptyStateProps> = React.memo(
         case "no-data":
           return {
             icon: <FileText className="h-12 w-12 text-muted-foreground" />,
-            title: title || "No requests found",
+            title: title || "Aucune demande",
             description:
               description ||
-              "There are no devis requests to display at the moment.",
+              "Aucune demande de devis à afficher pour le moment.",
           };
         case "no-results":
           return {
             icon: <Search className="h-12 w-12 text-muted-foreground" />,
-            title: title || "No results found",
+            title: title || "Aucun résultat",
             description:
-              description || "Try adjusting your search criteria or filters.",
+              description || "Modifiez la recherche ou les filtres.",
           };
         case "loading":
           return {
             icon: (
               <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
             ),
-            title: title || "Loading...",
-            description: description || "Please wait while we load the data.",
+            title: title || "Chargement…",
+            description: description || "Chargement des données en cours.",
           };
         default:
           return {
             icon: <FileText className="h-12 w-12 text-muted-foreground" />,
-            title: title || "No data",
-            description: description || "No data available.",
+            title: title || "Aucune donnée",
+            description: description || "Aucune donnée disponible.",
           };
       }
     };
